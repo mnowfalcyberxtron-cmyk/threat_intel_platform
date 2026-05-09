@@ -918,11 +918,15 @@ class Database:
         return cur.rowcount > 0
 
     async def log_user_activity(self, user_id: int, action: str, details: str = "", ip: str = ""):
-        await self._conn.execute(
-            "INSERT INTO user_activity (user_id, action, details, ip_address, timestamp) VALUES (?, ?, ?, ?, ?)",
-            (user_id, action, details, ip, now_iso())
-        )
-        await self._conn.commit()
+        try:
+            await self._conn.execute(
+                "INSERT INTO user_activity (user_id, action, details, ip_address, timestamp) VALUES (?, ?, ?, ?, ?)",
+                (user_id, action, details, ip, now_iso())
+            )
+            await self._conn.commit()
+        except Exception:
+            # Skip logging if user doesn't exist (common after DB reset)
+            pass
 
     async def get_user_activity(self, user_id: int, limit: int = 50) -> List[Dict]:
         async with self._conn.execute(
