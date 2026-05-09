@@ -126,7 +126,8 @@ async def lifespan(app: FastAPI):
     logger.info("="*60)
 
     try:
-        settings.ensure_dirs()
+        if not IS_VERCEL:
+            settings.ensure_dirs()
         await db.initialize()
         ai_engine.set_db(db)
 
@@ -145,12 +146,15 @@ async def lifespan(app: FastAPI):
         telegram_module._db = db
         auth_module._db = db
 
-        scheduler.start()
-        if settings.AUTO_RUN_ALL_ON_STARTUP:
-            logger.info("Running all feeds immediately...")
-            asyncio.create_task(scheduler.run_all_now())
+        if not IS_VERCEL:
+            scheduler.start()
+            if settings.AUTO_RUN_ALL_ON_STARTUP:
+                logger.info("Running all feeds immediately...")
+                asyncio.create_task(scheduler.run_all_now())
+            else:
+                logger.info("Startup feed auto-run disabled (AUTO_RUN_ALL_ON_STARTUP=false)")
         else:
-            logger.info("Startup feed auto-run disabled (AUTO_RUN_ALL_ON_STARTUP=false)")
+            logger.info("Vercel mode: Scheduler and auto-run disabled (using Vercel Crons instead)")
         logger.info("Dashboard  -> http://localhost:%d", settings.PORT)
         logger.info("API Docs   -> http://localhost:%d/api/docs", settings.PORT)
         yield
