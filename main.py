@@ -1,5 +1,5 @@
 """main.py — CyberXTron TIP v2.4 — Full Advisory Monitor + Fixed AI"""
-import asyncio, logging, sys, traceback, io
+import asyncio, logging, sys, traceback, io, os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -79,14 +79,28 @@ import api.onion_routes as onion_module
 from connectors.hibr import HIBRConnector
 from connectors.ransomware_live import RansomwareLiveConnector
 
-Path(settings.LOG_DIR).mkdir(parents=True, exist_ok=True)
+# Detect Vercel environment
+IS_VERCEL = "VERCEL" in os.environ
+if IS_VERCEL:
+    settings.LOG_DIR = "/tmp/logs"
+    settings.DB_PATH = "/tmp/threat_intel.db" # Database will be ephemeral on Vercel
+
+try:
+    Path(settings.LOG_DIR).mkdir(parents=True, exist_ok=True)
+except Exception:
+    pass # Read-only filesystem
+
+handlers = [SafeStreamHandler(sys.stdout) if sys.platform == "win32" else logging.StreamHandler(sys.stdout)]
+try:
+    log_file = Path(settings.LOG_DIR)/"platform.log"
+    handlers.append(logging.FileHandler(log_file,"a","utf-8"))
+except Exception:
+    pass # Cannot write to disk on Vercel
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    handlers=[
-        SafeStreamHandler(sys.stdout) if sys.platform == "win32" else logging.StreamHandler(sys.stdout),
-        logging.FileHandler(Path(settings.LOG_DIR)/"platform.log","a","utf-8"),
-    ],
+    handlers=handlers,
 )
 logger = logging.getLogger("main")
 
@@ -164,8 +178,11 @@ STATIC   = FRONTEND / "static"
 if STATIC.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC)), name="static")
 
-SCREENSHOTS = Path("data/screenshots")
-SCREENSHOTS.mkdir(parents=True, exist_ok=True)
+SCREENSHOTS = Path("/tmp/screenshots" if IS_VERCEL else "data/screenshots")
+try:
+    SCREENSHOTS.mkdir(parents=True, exist_ok=True)
+except Exception:
+    pass
 app.mount("/screenshots", StaticFiles(directory=str(SCREENSHOTS)), name="screenshots")
 
 @app.middleware("http")
