@@ -1,0 +1,28 @@
+# Dependencies
+venv/
+node_modules/
+.next/
+out/
+__pycache__/
+*.pyc
+
+# Large Binaries & Cache
+vendor-disclosure-monitor/frontend/node_modules/
+vendor-disclosure-monitor/frontend/.next/
+**/*.node
+**/*.exe
+**/*.dll
+
+# Data & Logs
+data/threat_intel.db*
+data/*.db*
+**/*.db-wal
+**/*.db-shm
+data/screenshots/
+logs/
+*.log
+
+# Environment
+.env
+.env.local
+.vercel

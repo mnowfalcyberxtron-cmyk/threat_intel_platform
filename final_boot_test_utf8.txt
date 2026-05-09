@@ -1,0 +1,243 @@
+﻿2026-04-02 20:20:57,662 [INFO] engine.ai: AI Engine initialized — provider: groq
+2026-04-02 20:20:58,284 [INFO] engine.ai: AI Engine initialized — provider: groq
+venv/Scripts/python.exe : 
+INFO:     Started server 
+process [17756]
+At line:1 char:1
++ venv/Scripts/python.exe 
+main.py > 
+final_boot_test.log 2>&1
++ ~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~
+    + CategoryInfo        
+      : NotSpecified: (I  
+  NFO:     Started serv   
+ er process [17756]:St    
+ring) [], RemoteExcep    
+tion
+    + FullyQualifiedError 
+   Id : NativeCommandErr  
+  or
+ 
+INFO:     Waiting for 
+application startup.
+2026-04-02 20:20:58,324 [INFO] main: ============================================================
+2026-04-02 20:20:58,324 [INFO] main:   CyberXTron TIP v2.4 — Starting
+2026-04-02 20:20:58,324 [INFO] main:   AI        : GROQ
+2026-04-02 20:20:58,324 [INFO] main:   HIBR      : [ENABLED]
+2026-04-02 20:20:58,324 [INFO] main:   RL Pro    : [ENABLED]
+2026-04-02 20:20:58,324 [INFO] main:   Tor/DW    : [ENABLED]
+2026-04-02 20:20:58,324 [INFO] main:   WebFeed   : every 5 min
+2026-04-02 20:20:58,324 [INFO] main:   Advisories: Top 25 companies — every 30 min
+2026-04-02 20:20:58,324 [INFO] main: ============================================================
+2026-04-02 20:20:58,343 [INFO] database: Database ready: data/threat_intel.db
+2026-04-02 20:20:58,344 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-04-02 20:20:58,344 [INFO] engine.scheduler:   [+] threatfox - every 900s
+2026-04-02 20:20:58,348 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-04-02 20:20:58,348 [INFO] engine.scheduler:   [+] urlhaus - every 900s
+2026-04-02 20:20:58,348 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-04-02 20:20:58,348 [INFO] engine.scheduler:   [+] feodo - every 1800s
+2026-04-02 20:20:58,348 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-04-02 20:20:58,348 [INFO] engine.scheduler:   [+] malwarebazaar - every 900s
+2026-04-02 20:20:58,348 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-04-02 20:20:58,348 [INFO] engine.scheduler:   [+] ransomware_live - every 600s
+2026-04-02 20:20:58,348 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-04-02 20:20:58,348 [INFO] engine.scheduler:   [+] haveibeenransom - every 600s
+2026-04-02 20:20:58,348 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-04-02 20:20:58,348 [INFO] engine.scheduler:   [+] circl_osint - every 1800s
+2026-04-02 20:20:58,350 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-04-02 20:20:58,350 [INFO] engine.scheduler:   [+] rss - every 1200s
+2026-04-02 20:20:58,350 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-04-02 20:20:58,350 [INFO] engine.scheduler:   [+] github_intel - every 3600s
+2026-04-02 20:20:58,350 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-04-02 20:20:58,350 [INFO] engine.scheduler:   [+] hibr - every 3600s
+2026-04-02 20:20:58,350 [INFO] engine.scheduler:   [-] falconfeeds - disabled
+2026-04-02 20:20:58,350 [INFO] engine.scheduler:   [-] hibp - disabled
+2026-04-02 20:20:58,350 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-04-02 20:20:58,350 [INFO] engine.scheduler:   [+] darkweb - every 3600s
+2026-04-02 20:20:58,351 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-04-02 20:20:58,351 [INFO] engine.scheduler:   [+] web_intel - every 300s (5 min)
+2026-04-02 20:20:58,351 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-04-02 20:20:58,351 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-04-02 20:20:58,351 [INFO] engine.scheduler:   [+] advisory_monitor - every 30 min
+2026-04-02 20:20:58,352 [INFO] apscheduler.scheduler: Added job "Threatfox" to job store "default"
+2026-04-02 20:20:58,352 [INFO] apscheduler.scheduler: Added job "Urlhaus" to job store "default"
+2026-04-02 20:20:58,352 [INFO] apscheduler.scheduler: Added job "Feodo" to job store "default"
+2026-04-02 20:20:58,352 [INFO] apscheduler.scheduler: Added job "Malwarebazaar" to job store "default"
+2026-04-02 20:20:58,352 [INFO] apscheduler.scheduler: Added job "Ransomware Live" to job store "default"
+2026-04-02 20:20:58,352 [INFO] apscheduler.scheduler: Added job "Haveibeenransom" to job store "default"
+2026-04-02 20:20:58,352 [INFO] apscheduler.scheduler: Added job "Circl Osint" to job store "default"
+2026-04-02 20:20:58,352 [INFO] apscheduler.scheduler: Added job "Rss" to job store "default"
+2026-04-02 20:20:58,352 [INFO] apscheduler.scheduler: Added job "Github Intel" to job store "default"
+2026-04-02 20:20:58,352 [INFO] apscheduler.scheduler: Added job "Hibr" to job store "default"
+2026-04-02 20:20:58,352 [INFO] apscheduler.scheduler: Added job "Darkweb" to job store "default"
+2026-04-02 20:20:58,352 [INFO] apscheduler.scheduler: Added job "Web Intel Feed" to job store "default"
+2026-04-02 20:20:58,352 [INFO] apscheduler.scheduler: Added job "Feed Cleanup" to job store "default"
+2026-04-02 20:20:58,352 [INFO] apscheduler.scheduler: Added job "Advisory Monitor" to job store "default"
+2026-04-02 20:20:58,352 [INFO] apscheduler.scheduler: Scheduler started
+2026-04-02 20:20:58,352 [INFO] engine.scheduler: Scheduler started — 14 jobs
+2026-04-02 20:20:58,352 [INFO] main: Running all feeds immediately...
+2026-04-02 20:20:58,352 [INFO] main: Dashboard  -> http://localhost:8000
+2026-04-02 20:20:58,352 [INFO] main: API Docs   -> http://localhost:8000/api/docs
+2026-04-02 20:20:58,352 [INFO] engine.scheduler: [RELOAD] Running all connectors + web intel...
+INFO:     Application 
+startup complete.
+2026-04-02 20:20:58,352 [INFO] engine.scheduler: [RUN] ThreatFox (Abuse.ch)
+2026-04-02 20:20:58,352 [INFO] connector.threatfox: Running connector: ThreatFox (Abuse.ch)
+2026-04-02 20:20:58,352 [INFO] engine.scheduler: [RUN] URLHaus (Abuse.ch)
+2026-04-02 20:20:58,352 [INFO] connector.urlhaus: Running connector: URLHaus (Abuse.ch)
+2026-04-02 20:20:58,352 [INFO] engine.scheduler: [RUN] Feodo Tracker (Abuse.ch)
+2026-04-02 20:20:58,352 [INFO] connector.feodo: Running connector: Feodo Tracker (Abuse.ch)
+2026-04-02 20:20:58,352 [INFO] engine.scheduler: [RUN] MalwareBazaar (Abuse.ch)
+2026-04-02 20:20:58,352 [INFO] connector.malwarebazaar: Running connector: MalwareBazaar (Abuse.ch)
+2026-04-02 20:20:58,352 [INFO] engine.scheduler: [RUN] Ransomware.live
+2026-04-02 20:20:58,352 [INFO] connector.ransomware_live: Running connector: Ransomware.live
+2026-04-02 20:20:58,942 [INFO] engine.scheduler: [RUN] RansomWatch (GitHub Mirror)
+2026-04-02 20:20:58,942 [INFO] connector.haveibeenransom: Running connector: RansomWatch (GitHub Mirror)
+2026-04-02 20:20:58,942 [INFO] engine.scheduler: [RUN] CIRCL OSINT Feeds
+2026-04-02 20:20:58,942 [INFO] connector.circl_osint: Running connector: CIRCL OSINT Feeds
+2026-04-02 20:20:58,942 [INFO] connector.web_intel: Running connector: Web Threat Intel (Live Feed)
+ERROR:    [Errno 10048] 
+error while attempting to 
+bind on address 
+('0.0.0.0', 8000): only 
+one usage of each socket 
+address (protocol/network 
+address/port) is normally 
+permitted
+INFO:     Waiting for 
+application shutdown.
+2026-04-02 20:20:58,985 [INFO] main: Shutting down...
+2026-04-02 20:20:58,992 [INFO] apscheduler.scheduler: Scheduler has been shut down
+INFO:     Application 
+shutdown complete.
+Traceback (most recent 
+call last):
+  File "C:\Users\xtronuser
+\Downloads\CyberXTron_TIP_
+v2.4_FINAL\threat_intel_pl
+atform\venv\Lib\site-packa
+ges\uvicorn\server.py", 
+line 160, in startup
+    server = await 
+loop.create_server(
+             
+^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\xtronuser
+\AppData\Local\Programs\Py
+thon\Python311\Lib\asyncio
+\base_events.py", line 
+1536, in create_server
+    raise 
+OSError(err.errno, msg) 
+from None
+OSError: [Errno 10048] 
+error while attempting to 
+bind on address 
+('0.0.0.0', 8000): only 
+one usage of each socket 
+address (protocol/network 
+address/port) is normally 
+permitted
+
+During handling of the 
+above exception, another 
+exception occurred:
+
+Traceback (most recent 
+call last):
+  File "C:\Users\xtronuser
+\Downloads\CyberXTron_TIP_
+v2.4_FINAL\threat_intel_pl
+atform\main.py", line 
+127, in <module>
+    
+uvicorn.run("main:app", 
+host=settings.HOST, 
+port=settings.PORT, 
+reload=False, 
+log_level="info")
+  File "C:\Users\xtronuser
+\Downloads\CyberXTron_TIP_
+v2.4_FINAL\threat_intel_pl
+atform\venv\Lib\site-packa
+ges\uvicorn\main.py", 
+line 587, in run
+    server.run()
+  File "C:\Users\xtronuser
+\Downloads\CyberXTron_TIP_
+v2.4_FINAL\threat_intel_pl
+atform\venv\Lib\site-packa
+ges\uvicorn\server.py", 
+line 61, in run
+    return asyncio.run(sel
+f.serve(sockets=sockets))
+           ^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\xtronuser
+\AppData\Local\Programs\Py
+thon\Python311\Lib\asyncio
+\runners.py", line 190, 
+in run
+    return 
+runner.run(main)
+           
+^^^^^^^^^^^^^^^^
+  File "C:\Users\xtronuser
+\AppData\Local\Programs\Py
+thon\Python311\Lib\asyncio
+\runners.py", line 118, 
+in run
+    return self._loop.run_
+until_complete(task)
+           ^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\xtronuser
+\AppData\Local\Programs\Py
+thon\Python311\Lib\asyncio
+\base_events.py", line 
+641, in run_until_complete
+    self.run_forever()
+  File "C:\Users\xtronuser
+\AppData\Local\Programs\Py
+thon\Python311\Lib\asyncio
+\windows_events.py", line 
+321, in run_forever
+    super().run_forever()
+  File "C:\Users\xtronuser
+\AppData\Local\Programs\Py
+thon\Python311\Lib\asyncio
+\base_events.py", line 
+608, in run_forever
+    self._run_once()
+  File "C:\Users\xtronuser
+\AppData\Local\Programs\Py
+thon\Python311\Lib\asyncio
+\base_events.py", line 
+1936, in _run_once
+    handle._run()
+  File "C:\Users\xtronuser
+\AppData\Local\Programs\Py
+thon\Python311\Lib\asyncio
+\events.py", line 84, in 
+_run
+    self._context.run(self
+._callback, *self._args)
+  File "C:\Users\xtronuser
+\Downloads\CyberXTron_TIP_
+v2.4_FINAL\threat_intel_pl
+atform\venv\Lib\site-packa
+ges\uvicorn\server.py", 
+line 78, in serve
+    await self.startup(soc
+kets=sockets)
+  File "C:\Users\xtronuser
+\Downloads\CyberXTron_TIP_
+v2.4_FINAL\threat_intel_pl
+atform\venv\Lib\site-packa
+ges\uvicorn\server.py", 
+line 170, in startup
+    sys.exit(1)
+SystemExit: 1
+FATAL UVICORN ERROR: 1

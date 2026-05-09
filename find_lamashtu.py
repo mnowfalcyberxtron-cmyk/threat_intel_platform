@@ -1,0 +1,10 @@
+import sqlite3
+conn = sqlite3.connect('data/threat_intel.db')
+cur = conn.cursor()
+cur.execute("SELECT group_name, onion_url, source_url FROM ransomware_victims WHERE group_name LIKE '%lamashtu%'")
+rows = cur.fetchall()
+print(f"Victims: {rows}")
+cur.execute("SELECT threat_actor, ioc FROM iocs WHERE threat_actor LIKE '%lamashtu%' AND ioc_type='onion'")
+rows = cur.fetchall()
+print(f"IOCs: {rows}")
+conn.close()

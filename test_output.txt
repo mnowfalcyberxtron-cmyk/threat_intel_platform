@@ -1,0 +1,22 @@
+﻿============================================================
+  CyberXTron ù .onion Scraping Capability Test
+  Tor Proxy: 127.0.0.1:9150
+============================================================
+
+[1] Testing Tor proxy connectivity...
+    [OK] Tor is ACTIVE. Exit IP: 124.198.131.29
+
+[2] Attempting to scrape: https://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion/
+    [TIMEOUT] Site did not respond within 60 seconds.
+
+  RESULT: Tor is working but this specific .onion timed out (normal for ransomware sites).
+
+[3] Testing Playwright + Tor (headless screenshot engine)...
+    Navigating via Playwright+Tor to DuckDuckGo .onion...
+    [TIMEOUT/FAIL] net::ERR_TIMED_OUT at https://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion/
+
+  RESULT: Playwright+Tor connected but .onion navigation timed out.
+  This is NORMAL for ransomware leak sites which are often slow/down.
+
+============================================================
+

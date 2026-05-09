@@ -1,0 +1,47 @@
+# Python junk
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+venv/
+env/
+.venv/
+
+# Local databases
+*.db
+!data/threat_intel.db
+
+# Logs
+logs/
+*.log
+server_log*.txt
+server_traceback*.txt
+
+# Git
+.git/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# ONLY IGNORE THESE SPECIFIC DATA FILES
+all_leak_dates_unique.txt
+all_samples.txt
+non_dates.txt
+error.txt
+test_output.txt
+
+# BUT DO NOT IGNORE CODE
+!api/
+!connectors/
+!database/
+!engine/
+!frontend/
+!reports/
+!utils/
+!main.py
+!config.py
+!requirements.txt

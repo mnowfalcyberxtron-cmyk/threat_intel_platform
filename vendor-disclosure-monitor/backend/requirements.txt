@@ -1,0 +1,12 @@
+fastapi
+uvicorn[standard]
+SQLAlchemy
+pydantic
+pydantic-settings
+apscheduler
+httpx
+feedparser
+beautifulsoup4
+python-dateutil
+PyYAML
+python-dotenv

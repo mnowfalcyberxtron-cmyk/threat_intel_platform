@@ -1,0 +1,82 @@
+companies:
+  - name: Google
+    slug: google
+    official_site: "https://www.google.com"
+    sources:
+      - name: Google Security Blog
+        type: OFFICIAL_VENDOR
+        subtype: RSS
+        url: "https://security.googleblog.com/feeds/posts/default"
+      - name: Google Chrome Releases
+        type: OFFICIAL_VENDOR
+        subtype: RSS
+        url: "https://chromereleases.googleblog.com/feeds/posts/default"
+
+  - name: Microsoft
+    slug: microsoft
+    official_site: "https://www.microsoft.com"
+    sources:
+      - name: Microsoft Security Response Center (MSRC)
+        type: OFFICIAL_VENDOR
+        subtype: HTML_PAGE
+        url: "https://msrc.microsoft.com/update-guide"
+        parser_hint: "table#vulnerabilityTable"
+      - name: Microsoft Security Blog
+        type: OFFICIAL_VENDOR
+        subtype: RSS
+        url: "https://www.microsoft.com/en-us/security/blog/feed/"
+
+  - name: Cisco
+    slug: cisco
+    official_site: "https://www.cisco.com"
+    sources:
+      - name: Cisco Security Advisories RSS
+        type: OFFICIAL_VENDOR
+        subtype: RSS
+        url: "https://tools.cisco.com/security/center/psirtrss20/CiscoSecurityAdvisory.xml"
+
+  - name: Palo Alto Networks
+    slug: palo-alto-networks
+    official_site: "https://www.paloaltonetworks.com"
+    sources:
+      - name: PAN Security Advisories
+        type: OFFICIAL_VENDOR
+        subtype: HTML_PAGE
+        url: "https://security.paloaltonetworks.com/"
+        parser_hint: ".advisories-list"
+
+  - name: CrowdStrike
+    slug: crowdstrike
+    official_site: "https://www.crowdstrike.com"
+    sources:
+      - name: CrowdStrike Security Blog
+        type: OFFICIAL_VENDOR
+        subtype: RSS
+        url: "https://www.crowdstrike.com/blog/feed/"
+
+  - name: Cloudflare
+    slug: cloudflare
+    official_site: "https://www.cloudflare.com"
+    sources:
+      - name: Cloudflare Security Incidents
+        type: OFFICIAL_VENDOR
+        subtype: RSS
+        url: "https://blog.cloudflare.com/tag/security/rss/"
+
+external_sources:
+  - name: CISA Known Exploited Vulnerabilities
+    type: EXTERNAL_INTEL
+    subtype: HTML_PAGE
+    url: "https://www.cisa.gov/known-exploited-vulnerabilities-catalog"
+    parser_hint: "table"
+
+  - name: KrebsOnSecurity
+    type: EXTERNAL_INTEL
+    subtype: RSS
+    url: "https://krebsonsecurity.com/feed/"
+
+  - name: The Hacker News
+    type: EXTERNAL_INTEL
+    subtype: RSS
+    url: "https://feeds.feedburner.com/TheHackersNews"
+

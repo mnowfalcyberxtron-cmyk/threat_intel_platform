@@ -1,0 +1,51 @@
+
+services:
+  app:
+    build: .
+    container_name: cyberxtron_tip
+    ports:
+      - "8002:8002"
+    env_file:
+      - .env
+    environment:
+      # Tor routing override (docker internal service name)
+      - TOR_SOCKS_HOST=tor
+      - TOR_SOCKS_PORT=9050
+      - ENABLE_DARKWEB=true
+      - PORT=8002
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./screenshots:/app/screenshots
+    depends_on:
+      - tor
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    dns_opt:
+      - "timeout:10"
+      - "attempts:3"
+
+  tor:
+    image: peterdavehello/tor-socks-proxy:latest
+    container_name: cyberxtron_tor
+    ports:
+      - "9050:9050"
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: cyberxtron_ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ./ollama_data:/root/.ollama
+    restart: unless-stopped
+
+volumes:
+  data:
+  logs:
+  screenshots:
