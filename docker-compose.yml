@@ -8,15 +8,19 @@ services:
     env_file:
       - .env
     environment:
-      # Tor routing override (docker internal service name)
+      # Override Tor host to use the Docker internal service name
       - TOR_SOCKS_HOST=tor
       - TOR_SOCKS_PORT=9050
       - ENABLE_DARKWEB=true
       - PORT=8002
+      - HOST=0.0.0.0
+      - AUTO_RUN_ALL_ON_STARTUP=true
     volumes:
+      # Persist database, logs, screenshots and reports across restarts
       - ./data:/app/data
       - ./logs:/app/logs
       - ./screenshots:/app/screenshots
+      - ./reports:/app/reports
     depends_on:
       - tor
     extra_hosts:
@@ -28,6 +32,13 @@ services:
     dns_opt:
       - "timeout:10"
       - "attempts:3"
+    # Keep container running even if it crashes (will auto-restart)
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
 
   tor:
     image: peterdavehello/tor-socks-proxy:latest
@@ -35,17 +46,15 @@ services:
     ports:
       - "9050:9050"
     restart: unless-stopped
-
-  ollama:
-    image: ollama/ollama:latest
-    container_name: cyberxtron_ollama
-    ports:
-      - "11434:11434"
-    volumes:
-      - ./ollama_data:/root/.ollama
-    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "9050"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
 volumes:
   data:
   logs:
   screenshots:
+  reports:
