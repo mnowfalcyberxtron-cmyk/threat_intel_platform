@@ -7,6 +7,7 @@ import asyncio
 import logging
 from typing import Any, Dict, List
 from connectors.base import BaseConnector
+from config import settings
 
 logger = logging.getLogger("connector.ransomlook_market")
 
@@ -117,6 +118,9 @@ class RansomlookMarketConnector(BaseConnector):
                     name  = (g.get("name") or g.get("group") or "").strip()
                     meta  = g.get("meta") or {}
                     s_type = (meta.get("type") or "group").lower() if isinstance(meta, dict) else "group"
+                    # Map 'group' to 'threat_actor' for better UI clarity
+                    if s_type == "group": s_type = "threat_actor"
+                    
                     desc  = (g.get("description") or "")[:300]
                     for loc in (g.get("locations") or []):
                         raw_url = (loc.get("fqdn") or loc.get("url") or "").strip()

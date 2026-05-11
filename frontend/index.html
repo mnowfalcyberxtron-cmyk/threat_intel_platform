@@ -1066,7 +1066,14 @@ async function api(path,opts={}){
       return null;
     }
     return data;
-  }catch(e){console.error(path,e);toast(e.message,'err');return null;}
+  }catch(e){
+    console.error(path,e);
+    const msg = e.name === 'TypeError' && e.message === 'Failed to fetch' 
+      ? 'Network Error: Cannot connect to backend. Check if Docker container is healthy.'
+      : e.message;
+    toast(msg,'err');
+    return null;
+  }
 }
 const fmt=n=>n!=null?Number(n).toLocaleString():'—';
 const fdt=s=>s?s.slice(0,10):'—';
@@ -2073,20 +2080,25 @@ async function loadBreachMarkets(page=1){
     return;
   }
 
-  const statusPill = (s) => {
-    if(s === '200') return '<span style="color:var(--green);font-weight:700">Online</span>';
-    if(!s || s === 'pending') return '<span style="color:var(--yellow);font-weight:700">Pending</span>';
-    return '<span style="color:var(--red);font-weight:700">Offline</span>';
-  };
+  tbody.innerHTML = items.map(r => {
+    const isOnline = r.last_status === '200';
+    const isPending = !r.last_status || r.last_status === 'pending';
+    const statusColor = isOnline ? 'var(--green)' : isPending ? 'var(--yellow)' : 'var(--red)';
+    const statusText = isOnline ? 'Online' : isPending ? 'Pending' : (r.last_status.startsWith('error:') ? r.last_status.replace('error:','') : 'Offline');
+    
+    // Type badge colors
+    const typeCls = r.site_type === 'threat_actor' ? 'bc' : r.site_type === 'forum' ? 'bm' : 'bl';
+    const typeLabel = r.site_type === 'threat_actor' ? 'Actor' : (r.site_type || 'market');
 
-  tbody.innerHTML = items.map(r => `
-    <tr>
-      <td>${esc(r.name||'—')}</td>
-      <td>${esc(r.site_type||'market')}</td>
-      <td><a href="${esc(r.url||'#')}" target="_blank" rel="noopener">${esc(r.url||'—')}</a></td>
-      <td>${statusPill(r.last_status)}</td>
-      <td>${fts(r.last_checked)}</td>
-    </tr>`).join('');
+    return `
+      <tr>
+        <td style="font-weight:700;color:var(--txt)">${esc(r.name||'—')}</td>
+        <td><span class="badge ${typeCls}">${typeLabel.toUpperCase()}</span></td>
+        <td class="mono" style="font-size:10px"><a href="${esc(r.url||'#')}" target="_blank" rel="noopener" style="color:var(--cyan);text-decoration:none">${esc(r.url||'—')}</a></td>
+        <td style="color:${statusColor};font-weight:700;font-size:11px">${esc(statusText)}</td>
+        <td style="font-size:10px;color:var(--muted)">${fts(r.last_checked)}</td>
+      </tr>`;
+  }).join('');
   paginate('bm-pager', data.total||0, page, data.page_size||100, 'loadBreachMarkets');
 }
 

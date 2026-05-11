@@ -149,6 +149,8 @@ async def lifespan(app: FastAPI):
         if not IS_VERCEL:
             scheduler.start()
             if settings.AUTO_RUN_ALL_ON_STARTUP:
+                logger.info("Tor/Network settling (15s delay)...")
+                await asyncio.sleep(15)
                 logger.info("Running all feeds immediately...")
                 asyncio.create_task(scheduler.run_all_now())
             else:
