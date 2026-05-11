@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.11-bookworm
 
 WORKDIR /app
 
@@ -6,60 +6,14 @@ WORKDIR /app
 ENV DEBIAN_FRONTEND=noninteractive
 
 # ── System dependencies ──────────────────────────────────────────────────────
-# Full set for Playwright Chromium + screenshots + email SSL + Tor SOCKS
+# Minimal set for basics, Playwright will handle the rest via install-deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    # Core tools
     ca-certificates \
     curl \
     wget \
     gnupg \
-    # Email sending (SMTP SSL/TLS)
-    libssl3 \
     openssl \
-    # NSS (network security)
-    libnss3 \
-    libnss3-dev \
-    # ATK accessibility (required by Chromium)
-    libatk1.0-0 \
-    libatk-bridge2.0-0 \
-    libatspi2.0-0 \
-    # Pango + Cairo (TEXT RENDERING / SCREENSHOTS - was missing before)
-    libpango-1.0-0 \
-    libpangocairo-1.0-0 \
-    libpangoft2-1.0-0 \
-    libcairo2 \
-    libcairo-gobject2 \
-    # Cups
-    libcups2 \
-    # DRM & GPU rendering
-    libdrm2 \
-    libgbm1 \
-    # X11 display
-    libx11-6 \
-    libxcb1 \
-    libxcb-dri3-0 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxext6 \
-    libxfixes3 \
-    libxkbcommon0 \
-    libxrandr2 \
-    # Audio
-    libasound2 \
-    # GLib / GTK
-    libglib2.0-0 \
-    libgtk-3-0 \
-    # Font rendering
-    libfontconfig1 \
-    fonts-liberation \
-    # DBUS
-    libdbus-1-3 \
-    # Other shared libs
-    libexpat1 \
-    libfribidi0 \
-    libjpeg62-turbo \
-    libpng16-16 \
-    # Networking (for Tor/SOCKS)
+    libssl3 \
     netcat-openbsd \
     && rm -rf /var/lib/apt/lists/*
 
@@ -67,10 +21,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# ── Playwright: install Chromium browser binary ──────────────────────────────
-# We manually install deps above so we skip playwright install-deps
-# (which fails on Debian trixie due to renamed packages)
+# ── Playwright: install Chromium browser binary + dependencies ───────────────
 RUN playwright install chromium
+RUN playwright install-deps chromium
 
 # ── Application code ─────────────────────────────────────────────────────────
 COPY . .
