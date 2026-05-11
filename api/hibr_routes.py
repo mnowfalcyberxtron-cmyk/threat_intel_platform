@@ -113,26 +113,8 @@ async def fulldata_search(
     if not data:
         raise HTTPException(504, "HIBR API unavailable")
 
-    # Optionally trigger AI analysis if results found
-    ai = get_ai()
-    ai_summary = None
-    results = data.get("data", [])
-    if results and ai:
-        try:
-            hits = data.get("total_hits", len(results))
-            prompt = (
-                f"HIBR breach data search results for '{query}' (field: {fields}):\n"
-                f"Total hits: {hits}\n"
-                f"Sample records ({min(len(results),5)}):\n"
-                + json.dumps(results[:5], indent=2, default=str)
-                + "\n\nProvide a brief intelligence assessment: what does this exposure mean, "
-                  "what data types are compromised, what are the risks?"
-            )
-            ai_summary = await ai.chat(prompt)
-        except Exception as e:
-            logger.debug("AI summary failed: %s", e)
+    return data
 
-    return {**data, "ai_summary": ai_summary}
 
 
 # ── Fullstealer search ──────────────────────────────────────────────────────────

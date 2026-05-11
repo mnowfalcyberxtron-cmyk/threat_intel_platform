@@ -249,31 +249,42 @@ class RansomlookMarketConnector(BaseConnector):
         return records
 
     async def check_all_markets(self):
-        """Check live HTTP status of all clearnet breach markets in DB."""
+        """Check live HTTP status of all clearnet breach markets in DB and capture screenshots."""
         db = self._get_db()
         if db is None: return
         
-        async with db._conn.execute("SELECT id, url, name FROM breach_markets WHERE active=1") as cur:
+        async with db._conn.execute("SELECT id, url, name, screenshot_path FROM breach_markets WHERE active=1") as cur:
             rows = await cur.fetchall()
 
         if not rows: return
         
         logger.info("[RansomLook] Auto-checking uptime for %d breach markets", len(rows))
-        semaphore = asyncio.Semaphore(10)
+        semaphore = asyncio.Semaphore(5) # Lower concurrency for screenshots
         
         async def _check_one(row):
             async with semaphore:
                 status_code, error_msg = await self._check_url_robust(row["url"])
                 val = str(status_code) if status_code else f"error:{error_msg[:40]}"
+                
+                screenshot_path = row["screenshot_path"]
+                # Only capture screenshot if online and (no screenshot exists or it's old)
+                if status_code == 200:
+                    try:
+                        new_path = await self._capture_screenshot(row["url"], row["id"])
+                        if new_path:
+                            screenshot_path = new_path
+                    except Exception as se:
+                        logger.debug(f"Screenshot failed for {row['url']}: {se}")
+
                 await db._conn.execute(
-                    "UPDATE breach_markets SET last_status=?, last_checked=datetime('now'), updated_at=datetime('now') WHERE id=?",
-                    (val, row["id"]),
+                    "UPDATE breach_markets SET last_status=?, last_checked=datetime('now'), updated_at=datetime('now'), screenshot_path=? WHERE id=?",
+                    (val, screenshot_path, row["id"]),
                 )
         
         tasks = [_check_one(r) for r in rows]
         await asyncio.gather(*tasks, return_exceptions=True)
         await db._conn.commit()
-        await db.log("INFO", "ransomlook_market", f"Auto-uptime check complete: {len(rows)} markets")
+        await db.log("INFO", "ransomlook_market", f"Auto-uptime + screenshot check complete: {len(rows)} markets")
 
     async def _check_url_robust(self, url: str):
         """Robust HTTP check with HEAD fallback to GET."""
@@ -281,7 +292,15 @@ class RansomlookMarketConnector(BaseConnector):
         try:
             timeout = aiohttp.ClientTimeout(total=20)
             headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
-            async with aiohttp.ClientSession(timeout=timeout) as sess:
+            
+            # Use Tor if it's an onion address
+            is_onion = ".onion" in url.lower()
+            connector = None
+            if is_onion:
+                from aiohttp_socks import ProxyConnector
+                connector = ProxyConnector.from_url(f'socks5://{settings.TOR_SOCKS_HOST}:{settings.TOR_SOCKS_PORT}')
+            
+            async with aiohttp.ClientSession(timeout=timeout, connector=connector) as sess:
                 try:
                     async with sess.head(url, headers=headers, allow_redirects=True, ssl=False) as resp:
                         return resp.status, ""
@@ -290,4 +309,46 @@ class RansomlookMarketConnector(BaseConnector):
                         return resp.status, ""
         except asyncio.TimeoutError: return None, "timeout"
         except Exception as e: return None, str(e)[:80]
+
+    async def _capture_screenshot(self, url: str, market_id: int) -> str:
+        """Capture a screenshot of the market URL using Playwright."""
+        from playwright.async_api import async_playwright
+        from pathlib import Path
+        import os
+        
+        # Determine output path
+        screenshot_dir = Path("data/screenshots/markets")
+        screenshot_dir.mkdir(parents=True, exist_ok=True)
+        filename = f"market_{market_id}.png"
+        full_path = screenshot_dir / filename
+        
+        is_onion = ".onion" in url.lower()
+        proxy = None
+        if is_onion:
+            proxy = {"server": f"socks5://{settings.TOR_SOCKS_HOST}:{settings.TOR_SOCKS_PORT}"}
+            
+        try:
+            async with async_playwright() as p:
+                # Use a specific user data dir to avoid profile conflicts
+                browser = await p.chromium.launch(proxy=proxy)
+                context = await browser.new_context(
+                    viewport={'width': 1280, 'height': 800},
+                    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                )
+                page = await context.new_page()
+                
+                # Set a reasonable timeout for loading
+                timeout = 60000 if is_onion else 30000
+                await page.goto(url, wait_until="domcontentloaded", timeout=timeout)
+                # Wait a bit more for dynamic content
+                await asyncio.sleep(3)
+                
+                await page.screenshot(path=str(full_path), full_page=False)
+                await browser.close()
+                
+                # Return path relative to the app root or as served by FastAPI
+                return f"/screenshots/markets/{filename}"
+        except Exception as e:
+            logger.warning(f"Screenshot capture failed for {url}: {e}")
+            return ""
 

@@ -96,8 +96,7 @@ class DarkWebConnector(BaseConnector):
         return results
 
     async def _verify_tor(self) -> bool:
-        """Quick connectivity check via Tor. Falls back to Tor2Web if Tor is absent."""
-        self.use_tor2web = False
+        """Quick connectivity check via Tor SOCKS5."""
         try:
             proxy = f"socks5://{settings.TOR_SOCKS_HOST}:{settings.TOR_SOCKS_PORT}"
             connector = ProxyConnector.from_url(proxy)
@@ -110,16 +109,14 @@ class DarkWebConnector(BaseConnector):
                             self.logger.info("Tor verified: %s", data.get("IP","?"))
                             return True
         except Exception as e:
-            self.logger.warning("Tor check failed locally: %s. Falling back to Tor2Web", e)
+            self.logger.error("Tor check failed at %s:%d: %s", settings.TOR_SOCKS_HOST, settings.TOR_SOCKS_PORT, e)
             
-        self.logger.info("Tor proxy not reachable, enabling public Tor2Web gateway fallback.")
-        self.use_tor2web = True
-        return True
+        return False
 
     async def _fetch_onion(self, url: str) -> Optional[str]:
-        proxy = f"socks5://{settings.TOR_SOCKS_HOST}:{settings.TOR_SOCKS_PORT}" if not getattr(self, "use_tor2web", False) else None
+        proxy = f"socks5://{settings.TOR_SOCKS_HOST}:{settings.TOR_SOCKS_PORT}"
         try:
-            connector = ProxyConnector.from_url(proxy) if proxy else None
+            connector = ProxyConnector.from_url(proxy)
             timeout = aiohttp.ClientTimeout(total=45)
             headers = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; rv:109.0) Gecko/20100101 Firefox/115.0",
@@ -128,8 +125,6 @@ class DarkWebConnector(BaseConnector):
             }
             
             full_url = url if url.startswith("http") else f"http://{url}"
-            if getattr(self, "use_tor2web", False) and ".onion" in full_url:
-                full_url = full_url.replace(".onion", ".onion.ly")
                 
             async with aiohttp.ClientSession(connector=connector, timeout=timeout) as sess:
                 async with sess.get(full_url, headers=headers, allow_redirects=True) as resp:

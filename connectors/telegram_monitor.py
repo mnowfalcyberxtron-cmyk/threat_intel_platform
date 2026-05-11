@@ -26,13 +26,15 @@ class TelegramMonitorConnector(BaseConnector):
         self.db = db
         # High-interest keywords for categorization
         self.categories = {
-            "infostealer": ["infostealer", "stealer", "redline", "vidar", "raccoon", "lumma"],
-            "logs": ["log", "logs", "cloud logs", "personal logs"],
-            "combolist": ["combolist", "combo", "hits", "hq combo", "combonew"],
-            "database": ["database", "db leak", "leak", "breach", "sql dump"],
-            "ransomware": ["ransomware", "leak site", "extortion", "affiliate"],
-            "hacktivism": ["hacktivist", "anonymous", "ddos", "deface", "operation"],
-            "marketplace": ["market", "escrow", "black market", "sell logs", "buy logs"]
+            "infostealer_logs": ["infostealer", "stealer", "redline", "vidar", "raccoon", "lumma", "meta stealer", "titan stealer", "logs", "cloud logs", "personal logs", "stealer log", "premium logs"],
+            "combolist": ["combolist", "combo", "hits", "hq combo", "combonew", "user:pass", "mail:pass", "mailpass", "userpass", "sqli"],
+            "database_leaks": ["database", "db leak", "leak", "breach", "sql dump", "scraped", "json dump", "csv leak", "full db", "private db"],
+            "ransomware": ["ransomware", "leak site", "extortion", "affiliate", "encrypted", "decryptor", "lockbit", "clop", "alphv", "blackcat"],
+            "hacktivism": ["hacktivist", "anonymous", "ddos", "deface", "operation", "cyber army", "hackers", "cyber attack"],
+            "marketplace": ["market", "escrow", "black market", "sell logs", "buy logs", "shop", "account shop", "premium accounts", "selling"],
+            "carding": ["carding", "cc fullz", "dumps", "bin", "cvv", "cloned card", "bank login", "paypal", "stripe"],
+            "exploits": ["exploit", "0day", "poc", "vulnerability", "rce", "cve", "bypass", "fud", "rce exploit", "zero day"],
+            "osint": ["osint", "threat intel", "cyber security", "malware analysis", "cti", "investigation", "forensics"]
         }
 
     async def fetch(self) -> List[Dict[str, Any]]:
@@ -52,6 +54,10 @@ class TelegramMonitorConnector(BaseConnector):
         
         all_new = discovered_handles.union(web_handles)
         for handle in all_new:
+            # Clean handle: remove @ if present
+            handle = handle.lstrip("@").strip()
+            if not handle: continue
+            
             inserted, is_new = await self.db.upsert_telegram_channel({"handle": handle, "category": "discovered"})
             if is_new:
                 stats["new_handles"] += 1
@@ -64,7 +70,7 @@ class TelegramMonitorConnector(BaseConnector):
         logger.info(f"[TelegramMonitor] Checking liveness for {len(channels)} channels...")
         
         # Concurrency limit for checking t.me
-        semaphore = asyncio.Semaphore(10) # Increased concurrency
+        semaphore = asyncio.Semaphore(15) 
         
         async def _check_and_update(chan):
             async with semaphore:
@@ -83,7 +89,7 @@ class TelegramMonitorConnector(BaseConnector):
                     })
                     await self.db.update_telegram_status(cid, "200", metadata["subscribers"])
                     
-                    if old_status != "200":
+                    if old_status != "200" and metadata["subscribers"] > 0:
                         stats["alerts"] += 1
                         await self.db.create_alert({
                             "alert_type": "telegram_new_active",
@@ -138,12 +144,30 @@ class TelegramMonitorConnector(BaseConnector):
             'site:t.me "combolist"',
             'site:t.me "redline stealer"',
             'site:t.me "raccoon stealer"',
+            'site:t.me "vidar stealer"',
             'site:t.me "database leak"',
             'site:t.me "cyber threat intel"',
             'site:t.me "ransomware leak"',
             'site:t.me "botnet logs"',
             'site:t.me "hacktivist operation"',
-            'site:t.me "0day exploit"'
+            'site:t.me "0day exploit"',
+            'site:t.me "fullz dump"',
+            'site:t.me "cc shop"',
+            'site:t.me "malware source code"',
+            'site:t.me "breach alert"',
+            'site:t.me "scraped database"',
+            'site:t.me "combo hq"',
+            'site:t.me "stealer faked"',
+            'site:t.me "log cloud"',
+            'site:t.me "bank logs"',
+            'site:t.me "stealer logs"',
+            'site:t.me "database leak 2024"',
+            'site:t.me "private cloud logs"',
+            'site:t.me "combo list txt"',
+            'site:t.me "malware logs"',
+            'site:t.me "redline logs"',
+            'site:t.me "raccoon logs"',
+            'site:t.me "lumma stealer"'
         ]
         
         async with aiohttp.ClientSession() as sess:
@@ -163,7 +187,7 @@ class TelegramMonitorConnector(BaseConnector):
                                 handles.update(new_handles)
                         
                         # Anti-throttling delay
-                        await asyncio.sleep(1.5)
+                        await asyncio.sleep(2.0)
                 except Exception as e:
                     logger.debug(f"Web search discovery failed for '{query}': {e}")
         
@@ -202,19 +226,27 @@ class TelegramMonitorConnector(BaseConnector):
                         desc = ""
                         desc_el = soup.find("div", class_="tgme_channel_info_description")
                         if desc_el: desc = desc_el.get_text(strip=True)
-                        
+                                            
                         subs = 0
-                        sub_el = soup.find("div", class_="tgme_channel_info_counters")
-                        if sub_el:
-                            sub_text = sub_el.get_text(strip=True)
-                            # Match "1.2K subscribers" or "500 subscribers"
-                            m = re.search(r"([\d\.]+)([KM]?) subscribers", sub_text)
-                            if m:
-                                val = float(m.group(1))
-                                unit = m.group(2)
-                                if unit == "K": subs = int(val * 1000)
-                                elif unit == "M": subs = int(val * 1000000)
-                                else: subs = int(val)
+                        # Strategy 1: Look in counters (desktop layout)
+                        counters = soup.find("div", class_="tgme_channel_info_counters")
+                        if counters:
+                            for counter in counters.find_all("div", class_="tgme_channel_info_counter"):
+                                text = counter.get_text(strip=True).lower()
+                                if "subscribers" in text or "members" in text:
+                                    val_el = counter.find("span", class_="counter_value")
+                                    val_text = val_el.get_text(strip=True) if val_el else text.replace("subscribers", "").replace("members", "").strip()
+                                    subs = self._parse_subscriber_text(val_text)
+                                    if subs > 0: break
+                        
+                        # Strategy 2: Look in extra info (mobile/older layout)
+                        if subs == 0:
+                            extra = soup.find("div", class_="tgme_page_extra")
+                            if extra:
+                                extra_text = extra.get_text(strip=True).lower()
+                                m = re.search(r"([\d\.\s,]+[km]?)\s+(subscribers|members)", extra_text)
+                                if m:
+                                    subs = self._parse_subscriber_text(m.group(1))
                         
                         return {
                             "status": "active",
@@ -223,10 +255,25 @@ class TelegramMonitorConnector(BaseConnector):
                             "subscribers": subs
                         }
                     else:
-                        return {"status": f"http_{resp.status}", "name": "", "description": "", "subscribers": 0}
+                        return {"status": "offline", "name": "", "description": "", "subscribers": 0}
         except Exception as e:
-            logger.debug(f"Telegram check failed for @{handle}: {e}")
-            return {"status": "error", "name": "", "description": "", "subscribers": 0}
+            logger.debug(f"Error checking handle @{handle}: {e}")
+            return {"status": "error", "name": "", "description": str(e), "subscribers": 0}
+
+    def _parse_subscriber_text(self, text: str) -> int:
+        """Helper to parse 1.2K, 3M, 1,234 style numbers."""
+        if not text: return 0
+        text = text.replace(" ", "").replace(",", "").lower()
+        m = re.search(r"([\d\.]+)([km]?)", text)
+        if not m: return 0
+        try:
+            val = float(m.group(1))
+            unit = m.group(2)
+            if unit == "k": return int(val * 1000)
+            if unit == "m": return int(val * 1000000)
+            return int(val)
+        except:
+            return 0
 
     def _categorize(self, text: str) -> str:
         text = text.lower()

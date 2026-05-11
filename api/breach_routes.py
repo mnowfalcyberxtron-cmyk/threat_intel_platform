@@ -153,7 +153,9 @@ async def _do_refresh(db):
         # because the scheduler handles victims.
         await conn._ensure_breach_table()
         await conn._refresh_breach_markets()
-        logger.info("Breach market refresh complete.")
+        logger.info("Sync complete. Triggering uptime & screenshot check for all markets...")
+        await conn.check_all_markets()
+        logger.info("Breach market refresh + checks complete.")
     except Exception as e:
         logger.error("Breach market refresh failed: %s", e)
         await db.log("ERROR", "breach_market", f"Refresh failed: {e}")

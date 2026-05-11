@@ -83,13 +83,9 @@ async def get_group(group_name: str):
     profile = await rl.get_group_profile(group_name) if rl else None
     victims_data = await db.get_victims(group_name=group_name, page_size=200)
     victims = victims_data.get("items", [])
-    ai_analysis = None
-    if ai:
-        try: ai_analysis = await ai.analyze_ransomware_group(group_name, victims)
-        except Exception as e: logger.debug("AI group: %s", e)
     return {"group_name": group_name, "profile": profile,
             "victim_count": victims_data.get("total", 0),
-            "recent_victims": victims[:20], "ai_analysis": ai_analysis}
+            "recent_victims": victims[:20]}
 
 
 @rl_router.get("/victims/recent")

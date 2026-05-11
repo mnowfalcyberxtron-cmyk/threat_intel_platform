@@ -28,12 +28,10 @@ class OnionMonitorConnector:
         self.tor_proxy = f"socks5://{settings.TOR_SOCKS_HOST}:{settings.TOR_SOCKS_PORT}" if settings.ENABLE_DARKWEB else None
 
     async def _check_tor_available(self) -> bool:
-        """Return True if Tor proxy is reachable, else enable Tor2Web fallback."""
-        self.use_tor2web = False
+        """Return True if Tor proxy is reachable."""
         if not self.tor_proxy:
-            logger.info("[OnionMonitor] No Tor proxy configured. Falling back to Tor2Web.")
-            self.use_tor2web = True
-            return True
+            logger.warning("[OnionMonitor] No Tor proxy configured. Set TOR_SOCKS_PORT in .env")
+            return False
 
         try:
             connector = ProxyConnector.from_url(self.tor_proxy)
@@ -44,19 +42,14 @@ class OnionMonitorConnector:
                     if data.get("IsTor", False):
                         return True
         except Exception as e:
-            logger.warning(f"[OnionMonitor] Tor not available: {e}. Falling back to Tor2Web.")
-            self.use_tor2web = True
-            return True
+            logger.error(f"[OnionMonitor] Tor check failed: {e}. Check if Tor service is running.")
+            return False
             
-        self.use_tor2web = True
-        return True
+        return False
 
     def _format_url(self, url: str) -> str:
-        """Convert to Tor2Web URL if Tor is not available."""
-        full_url = url if url.startswith("http") else f"http://{url}"
-        if self.use_tor2web and ".onion" in full_url:
-            full_url = full_url.replace(".onion", ".onion.ly")
-        return full_url
+        """Ensure URL has http prefix."""
+        return url if url.startswith("http") else f"http://{url}"
 
     async def run(self, pending_only: bool = False):
         """
@@ -96,7 +89,7 @@ class OnionMonitorConnector:
 
         async with async_playwright() as p:
             # Launch chromium with or without Tor proxy
-            proxy_cfg = {"server": self.tor_proxy} if not getattr(self, "use_tor2web", False) else None
+            proxy_cfg = {"server": self.tor_proxy}
             browser = await p.chromium.launch(
                 proxy=proxy_cfg,
                 args=["--no-sandbox", "--disable-setuid-sandbox"]
@@ -142,7 +135,7 @@ class OnionMonitorConnector:
         async with async_playwright() as p:
             browser = None
             try:
-                proxy_cfg = {"server": self.tor_proxy} if not getattr(self, "use_tor2web", False) else None
+                proxy_cfg = {"server": self.tor_proxy}
                 browser = await p.chromium.launch(
                     proxy=proxy_cfg,
                     args=["--no-sandbox", "--disable-setuid-sandbox"]
@@ -248,7 +241,7 @@ class OnionMonitorConnector:
     async def _fallback_check(self, site_id, group, url, old_status):
         """Simple aiohttp check if browser fails."""
         try:
-            connector = ProxyConnector.from_url(self.tor_proxy) if not getattr(self, "use_tor2web", False) else None
+            connector = ProxyConnector.from_url(self.tor_proxy)
             async with aiohttp.ClientSession(connector=connector, timeout=aiohttp.ClientTimeout(total=45)) as session:
                 full_url = self._format_url(url)
                 async with session.get(full_url) as resp:

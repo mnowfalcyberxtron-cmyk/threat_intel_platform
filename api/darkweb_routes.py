@@ -140,7 +140,21 @@ async def add_site(site: OnionSite):
         site_id = row[0] if row else (cur.lastrowid or 0)
         action = "added" if cur.rowcount else "updated"
         await db.log("INFO", "darkweb_manager", f"{action.title()} onion site: {site.group_name} — {url}")
-        return {"status": action, "id": site_id, "group_name": site.group_name, "url": url}
+
+        # Trigger an immediate targeted scan for the new site to get screenshot & metadata
+        if site_id:
+            from connectors.onion_monitor import OnionMonitorConnector
+            from fastapi import BackgroundTasks
+            
+            async def run_initial_scan(sid):
+                connector = OnionMonitorConnector(db)
+                await connector.run_targeted_scan(sid)
+            
+            # We can't easily use BackgroundTasks here without changing function signature, 
+            # so we use asyncio.create_task directly as it's already used elsewhere in the project.
+            asyncio.create_task(run_initial_scan(site_id))
+
+        return {"status": action, "id": site_id, "group_name": site.group_name, "url": url, "message": "Site added and initial scan triggered."}
     except Exception as e:
         logger.error(f"Failed to add site: {e}")
         raise HTTPException(500, f"Database error: {str(e)}")
@@ -322,24 +336,44 @@ async def test_site(site_id: str):
                 elapsed = round((time.time() - start) * 1000)
                 content_len = len(await resp.read())
 
-                # Update last_checked in DB if it's a persistent site
-                if not str(site_id).startswith("config_") and not str(site_id).startswith("disc_"):
-                    db = get_db()
-                    await db._conn.execute(
-                        "UPDATE onion_sites SET last_checked=datetime('now'), last_status=? WHERE id=?",
-                        (str(resp.status), int(site_id))
-                    )
-                    await db._conn.commit()
+                if resp.status == 200:
+                    # Update last_checked in DB if it's a persistent site
+                    if not str(site_id).startswith("config_") and not str(site_id).startswith("disc_"):
+                        # SUCCESS! Trigger a full scrape (screenshot, metadata) in background
+                        try:
+                            from connectors.onion_monitor import OnionMonitorConnector
+                            connector_monitor = OnionMonitorConnector(db)
+                            asyncio.create_task(connector_monitor.run_targeted_scan(int(site_id)))
+                            logger.info(f"Triggered full scrape for {group} after successful test.")
+                        except Exception as se:
+                            logger.error(f"Failed to trigger scrape: {se}")
 
-                return {
-                    "status": "reachable" if resp.status == 200 else "error",
-                    "http_status": resp.status,
-                    "group_name": group,
-                    "url": url,
-                    "latency_ms": elapsed,
-                    "content_bytes": content_len,
-                    "message": "Site is online" if resp.status == 200 else f"HTTP {resp.status}",
-                }
+                    return {
+                        "status": "reachable",
+                        "http_status": 200,
+                        "group_name": group,
+                        "url": url,
+                        "latency_ms": elapsed,
+                        "content_bytes": content_len,
+                        "message": "Site is online. Triggered full scrape & screenshot.",
+                    }
+                else:
+                    # Not 200 but reachable
+                    if not str(site_id).startswith("config_") and not str(site_id).startswith("disc_"):
+                        await db._conn.execute(
+                            "UPDATE onion_sites SET last_checked=datetime('now'), last_status=? WHERE id=?",
+                            (str(resp.status), int(site_id))
+                        )
+                        await db._conn.commit()
+                    
+                    return {
+                        "status": "error",
+                        "http_status": resp.status,
+                        "group_name": group,
+                        "url": url,
+                        "latency_ms": elapsed,
+                        "message": f"HTTP {resp.status}",
+                    }
     except Exception as e:
         err = str(e)
         if not str(site_id).startswith("config_") and not str(site_id).startswith("disc_"):
@@ -443,23 +477,37 @@ async def tor_status():
 # ── DB helper ──────────────────────────────────────────────────────────────────
 
 async def _ensure_table(db):
-    """Create onion_sites table if it doesn't exist."""
+    """Create onion_sites table if it doesn't exist, with all necessary columns."""
     await db._conn.execute("""
         CREATE TABLE IF NOT EXISTS onion_sites (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            group_name  TEXT NOT NULL,
-            url         TEXT NOT NULL UNIQUE,
-            description TEXT DEFAULT '',
-            active      INTEGER DEFAULT 1,
-            site_type   TEXT DEFAULT 'ransomware',
-            created_at  TEXT NOT NULL DEFAULT (datetime('now')),
-            last_checked TEXT DEFAULT NULL,
-            last_status TEXT DEFAULT 'pending'
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            group_name      TEXT NOT NULL,
+            url             TEXT NOT NULL UNIQUE,
+            description     TEXT DEFAULT '',
+            page_title      TEXT DEFAULT '',
+            meta_generator  TEXT DEFAULT '',
+            full_html       TEXT DEFAULT '',
+            last_content    TEXT DEFAULT '',
+            screenshot_path TEXT DEFAULT '',
+            active          INTEGER DEFAULT 1,
+            site_type       TEXT DEFAULT 'ransomware',
+            created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+            last_checked    TEXT DEFAULT NULL,
+            last_status     TEXT DEFAULT 'pending'
         )
     """)
-    # Ensure site_type exists if it was created before
-    try:
-        await db._conn.execute("ALTER TABLE onion_sites ADD COLUMN site_type TEXT DEFAULT 'ransomware'")
-    except:
-        pass
+    # Ensure missing columns exist (migration)
+    cols = [
+        ("page_title", "TEXT DEFAULT ''"),
+        ("meta_generator", "TEXT DEFAULT ''"),
+        ("full_html", "TEXT DEFAULT ''"),
+        ("last_content", "TEXT DEFAULT ''"),
+        ("screenshot_path", "TEXT DEFAULT ''"),
+        ("site_type", "TEXT DEFAULT 'ransomware'"),
+    ]
+    for col, defn in cols:
+        try:
+            await db._conn.execute(f"ALTER TABLE onion_sites ADD COLUMN {col} {defn}")
+        except Exception:
+            pass
     await db._conn.commit()
