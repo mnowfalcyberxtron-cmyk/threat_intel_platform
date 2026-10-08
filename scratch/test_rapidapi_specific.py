@@ -1,9 +1,10 @@
 import requests
 import json
+import os
 
 headers = {
     "x-rapidapi-host": "ics-ap-apis.p.rapidapi.com",
-    "x-rapidapi-key": "a8806dc109mshcfc303b56af6919p1f219ejsn8fb9ad49250c"
+    "x-rapidapi-key": os.getenv("RAPIDAPI_KEY", os.getenv("ICS_RAPIDAPI_KEY", ""))
 }
 
 endpoints = [

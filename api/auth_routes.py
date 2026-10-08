@@ -344,7 +344,7 @@ async def get_user_activity(user_id: int, request: Request):
 
 @router.get("/health/api-keys")
 async def check_api_health(request: Request):
-    """Checks the health of currently configured API keys (from X-API-Keys or .env fallback)."""
+    """Checks the health of server-side configured API keys."""
     results = {}
     timeout = httpx.Timeout(5.0)
 

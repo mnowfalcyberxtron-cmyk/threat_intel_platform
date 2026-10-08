@@ -140,14 +140,22 @@ class ConnectionWrapper:
 
     async def close(self):
         await self.pg_conn.close()
-\nclass Database:
+
+
+class Database:
     def __init__(self):
-        self._db_url = getattr(settings, "DATABASE_URL", "")
+        self._db_url = (
+            getattr(settings, "DATABASE_URL", "")
+            or getattr(settings, "POSTGRES_URL", "")
+        )
         self._db_path = settings.DB_PATH
-        self._conn: Optional[aiosqlite.Connection] = None
+        self._conn = None
 
     async def initialize(self):
-        db_url = getattr(settings, "DATABASE_URL", None)
+        db_url = (
+            getattr(settings, "DATABASE_URL", "")
+            or getattr(settings, "POSTGRES_URL", "")
+        )
         if not db_url:
             db_url = "postgresql://postgres:postgres@localhost:5432/threatintel"
             

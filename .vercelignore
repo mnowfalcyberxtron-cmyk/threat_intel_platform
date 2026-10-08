@@ -15,7 +15,12 @@ logs/
 reports/
 screenshots/
 scratch/
-vendor-disclosure-monitor/
+vendor-disclosure-monitor/.env
+vendor-disclosure-monitor/.venv/
+vendor-disclosure-monitor/data/
+vendor-disclosure-monitor/frontend/.next/
+vendor-disclosure-monitor/frontend/node_modules/
+vendor-disclosure-monitor/__pycache__/
 Al-Ansar-main/
 Al-Ansar-main.zip
 

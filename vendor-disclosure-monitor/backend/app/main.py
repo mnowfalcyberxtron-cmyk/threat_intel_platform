@@ -29,9 +29,11 @@ def _as_list(value: Optional[str]) -> list[str]:
 
 app = FastAPI(title=settings.app_name)
 
+cors_origins = [origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -41,6 +43,8 @@ app.add_middleware(
 @app.on_event("startup")
 def on_startup() -> None:
     init_db()
+    if not settings.enable_scheduler:
+        return
     # Load vendor and source configuration
     db = next(get_db())
     try:
@@ -53,7 +57,8 @@ def on_startup() -> None:
 
 @app.on_event("shutdown")
 def on_shutdown() -> None:
-    monitoring_scheduler.shutdown()
+    if settings.enable_scheduler:
+        monitoring_scheduler.shutdown()
 
 
 @app.get("/health")
@@ -333,4 +338,3 @@ def get_timeline(
             )
         )
     return days_list
-

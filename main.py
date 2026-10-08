@@ -40,7 +40,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from fastapi import Request, HTTPException
 import json
 
-from config import settings, request_api_keys
+from config import settings
 
 from database.db import Database
 from engine.scheduler import MonitoringScheduler
@@ -319,27 +319,6 @@ async def check_authentication(request: Request, call_next):
         if "No response returned" in str(e):
             return JSONResponse({"detail": "Client disconnected / timeout"}, status_code=499)
         raise e
-
-@app.middleware("http")
-async def extract_api_keys(request: Request, call_next):
-    keys_str = request.headers.get("X-API-Keys")
-    token = None
-    if keys_str:
-        try:
-            keys = json.loads(keys_str)
-            token = request_api_keys.set(keys)
-        except Exception:
-            pass
-    try:
-        response = await call_next(request)
-        return response
-    except RuntimeError as e:
-        if "No response returned" in str(e):
-            return JSONResponse({"detail": "Client disconnected / timeout"}, status_code=499)
-        raise e
-    finally:
-        if token:
-            request_api_keys.reset(token)
 
 @app.get("/")
 async def login_page():

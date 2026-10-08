@@ -11,8 +11,6 @@ const COLORS=['#00d4ff','#388bfd','#bc8cff','#3fb950','#d29922','#db6d28','#f851
 async function api(path,opts={}){
   try{
     opts.headers = opts.headers || {};
-    const storedKeys = localStorage.getItem('threatintel_keys');
-    if (storedKeys) opts.headers['X-API-Keys'] = storedKeys;
     const r=await fetch(path,opts);
     let data=null; try { data=await r.json(); } catch(e){}
     if(!r.ok){

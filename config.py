@@ -31,6 +31,8 @@ class Settings:
     PORT          = int(os.getenv("PORT", 8003))
     DB_ENGINE     = os.getenv("DB_ENGINE", "sqlite").strip().lower()
     DB_PATH       = os.getenv("DB_PATH", "data/threat_intel.db")
+    POSTGRES_URL  = os.getenv("POSTGRES_URL", "")
+    DATABASE_URL  = os.getenv("DATABASE_URL", POSTGRES_URL)
     CLICKHOUSE_HOST     = os.getenv("CLICKHOUSE_HOST", "localhost")
     CLICKHOUSE_PORT     = int(os.getenv("CLICKHOUSE_PORT", 8123))
     CLICKHOUSE_USERNAME = os.getenv("CLICKHOUSE_USERNAME", "default")

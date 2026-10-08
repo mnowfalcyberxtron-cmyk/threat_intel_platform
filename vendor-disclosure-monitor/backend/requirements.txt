@@ -4,6 +4,7 @@ SQLAlchemy
 pydantic
 pydantic-settings
 apscheduler
+psycopg2-binary
 httpx
 feedparser
 beautifulsoup4
