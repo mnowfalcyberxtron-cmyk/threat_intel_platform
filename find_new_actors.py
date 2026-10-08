@@ -43,7 +43,7 @@ for g in new_groups:
             if cur.rowcount > 0:
                 print(f"Propagated: {g} -> {url}")
                 added_count += 1
-        except: pass
+        except Exception: pass
 
 conn.commit()
 print(f"Total new actors propagated to monitor: {added_count}")

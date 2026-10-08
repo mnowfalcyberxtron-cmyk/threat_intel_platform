@@ -1,0 +1,49 @@
+﻿Al-Ansar repository export
+==========================
+
+Repository: Mohamed0703/Al-Ansar
+Branch: main
+Commit: 9cc771fcd06af6848ce8ba2709bd882f6a1a2637
+Commit date: 2026-07-21T07:38:18Z
+
+This archive was created from the GitHub connector-accessible files in this Codex environment.
+The repository is private, and direct unauthenticated GitHub archive download returned 404.
+The GitHub connector in this environment exposes file fetches, but not a repository zipball download.
+
+Files included in this archive:
+.env.example
+.gitignore
+APK_PACKAGING.md
+TELEGRAM_SETUP.md
+assets/.aistudio/.gitignore
+db.json
+index.html
+metadata.json
+
+Files reported in latest main that were not included because the available connector path could not stream the whole repository/archive into local disk without truncation:
+bun.lock
+package.json
+prisma/schema.prisma
+schema.sql
+server.ts
+src/App.tsx
+src/components/Customers.tsx
+src/components/DailyRegistry.tsx
+src/components/Dashboard.tsx
+src/components/Expenses.tsx
+src/components/Login.tsx
+src/components/Purchases.tsx
+src/components/Reports.tsx
+src/components/Sales.tsx
+src/components/Settings.tsx
+src/components/TelegramSimulator.tsx
+src/index.css
+src/lib/api.ts
+src/main.tsx
+src/server/dbService.ts
+src/server/telegramService.ts
+src/types.ts
+tsconfig.json
+vite.config.ts
+
+Security note: db.json in the repository contains sensitive-looking Telegram configuration values. The file was preserved as fetched.

@@ -25,13 +25,17 @@ class RansomwareLiveConnector(BaseConnector):
     PUBLIC_BASE = "https://api.ransomware.live"
     TIMEOUT     = 15  # short timeout — fail fast, fall back to RansomWatch
 
+    def __init__(self, db=None):
+        super().__init__()
+        self.db = db
+
     @property
     def _has_key(self):
         return bool(settings.ENABLE_RANSOMWARE_API and settings.RANSOMWARE_LIVE_API_KEY)
 
     @property
     def _headers(self):
-        h = {"Accept": "application/json", "User-Agent": "CyberXTron-TIP/2.2"}
+        h = {"Accept": "application/json", "User-Agent": "ThreatIntel-TIP/2.2"}
         if self._has_key:
             h["Authorization"] = f"Bearer {settings.RANSOMWARE_LIVE_API_KEY}"
             h["X-Api-Key"]     = settings.RANSOMWARE_LIVE_API_KEY
@@ -52,6 +56,7 @@ class RansomwareLiveConnector(BaseConnector):
         rl_groups = await self._try_rl_groups()
         if rl_groups:
             records.extend(rl_groups)
+            await self._upsert_onion_sites_from_iocs(rl_groups)
             stats["groups"] += len(rl_groups)
             self.logger.info("Ransomware.live API: %d groups/onions", len(rl_groups))
 
@@ -95,18 +100,19 @@ class RansomwareLiveConnector(BaseConnector):
     async def _try_rl_groups(self) -> List[Dict[str, Any]]:
         """Fetch all groups and their .onion URLs from Ransomware.live/groups."""
         import aiohttp
-        url = f"{self.PUBLIC_BASE}/groups"
-        try:
-            timeout = aiohttp.ClientTimeout(total=self.TIMEOUT)
-            async with aiohttp.ClientSession(timeout=timeout) as sess:
-                async with sess.get(url, headers=self._headers) as resp:
-                    if resp.status == 200:
-                        data = await resp.json(content_type=None)
-                        groups = self._extract_list(data)
-                        if groups:
-                            return self._parse_groups(groups)
-        except Exception as e:
-            self.logger.debug("RL Groups error: %s", e)
+        urls = [f"{self.PUBLIC_BASE}/v2/groups", f"{self.PUBLIC_BASE}/groups"]
+        for url in urls:
+            try:
+                timeout = aiohttp.ClientTimeout(total=self.TIMEOUT)
+                async with aiohttp.ClientSession(timeout=timeout) as sess:
+                    async with sess.get(url, headers=self._headers) as resp:
+                        if resp.status == 200:
+                            data = await resp.json(content_type=None)
+                            groups = self._extract_list(data)
+                            if groups:
+                                return self._parse_groups(groups)
+            except Exception as e:
+                self.logger.debug("RL Groups error %s: %s", url, e)
         return []
 
     async def _try_rl_api(self) -> List[Dict[str, Any]]:
@@ -134,7 +140,7 @@ class RansomwareLiveConnector(BaseConnector):
             ]
 
         for url in endpoints:
-            print(f"DEBUG RL: Fetching {url}")
+            self.logger.debug("RL: fetching %s", url)
             try:
                 timeout = aiohttp.ClientTimeout(total=self.TIMEOUT)
                 conn = aiohttp.TCPConnector(ssl=ssl_ctx)
@@ -157,7 +163,7 @@ class RansomwareLiveConnector(BaseConnector):
 
         # Posts (victims)
         posts_raw = await self._get(RANSOMWATCH_POSTS_URL,
-            headers={"User-Agent": "CyberXTron-TIP/2.2"})
+            headers={"User-Agent": "ThreatIntel-TIP/2.2"})
         posts = self._extract_list(posts_raw) if posts_raw else []
         if posts:
             records.extend(self._parse_victims(posts[:1000]))
@@ -165,7 +171,7 @@ class RansomwareLiveConnector(BaseConnector):
 
         # Groups (for onion IOCs)
         groups_raw = await self._get(RANSOMWATCH_GROUPS_URL,
-            headers={"User-Agent": "CyberXTron-TIP/2.2"})
+            headers={"User-Agent": "ThreatIntel-TIP/2.2"})
         groups = self._extract_list(groups_raw) if groups_raw else []
         if groups:
             records.extend(self._parse_groups(groups))
@@ -192,9 +198,12 @@ class RansomwareLiveConnector(BaseConnector):
                 group = "✨ QILIN (Aggressive)"
                 self.logger.info(f"Ransomware.live: Detected Qilin activity for victim {victim}")
 
-            print(f"DEBUG RL: type(v)={type(v)} keys={list(v.keys()) if isinstance(v,dict) else 'N/A'}")
-            leak_val = v.get("published") or v.get("leak_date") or v.get("date") or ""
-            print(f"DEBUG RL: victim={victim} published={v.get('published')} final={leak_val}")
+            print_debug = False  # removed legacy debug prints
+            leak_val = (
+                v.get("attackdate") or v.get("published") or
+                v.get("leak_date") or v.get("date") or
+                v.get("discovered") or ""
+            )
             
             out.append(self.make_victim(
                 source=self.name,
@@ -217,21 +226,56 @@ class RansomwareLiveConnector(BaseConnector):
             if not isinstance(g, dict): continue
             name = (g.get("name") or "").strip()
             if not name: continue
-            for loc in (g.get("locations") or []):
+            locations = g.get("locations") or g.get("fqdn") or g.get("fqdns") or g.get("urls") or []
+            if isinstance(locations, (str, dict)):
+                locations = [locations]
+            for loc in locations:
                 url = ""
                 if isinstance(loc, dict):
-                    url = loc.get("fqdn") or loc.get("url") or ""
+                    url = loc.get("fqdn") or loc.get("url") or loc.get("host") or loc.get("domain") or ""
                 elif isinstance(loc, str):
                     url = loc
                 if url and ".onion" in url:
+                    url = url.strip()
+                    if not url.startswith(("http://", "https://")):
+                        url = f"http://{url}"
                     records.append(self.make_ioc(
-                        source=self.name, ioc=url.strip(), ioc_type="domain",
+                        source=self.name, ioc=url, ioc_type="domain",
                         threat_actor=name, malware="ransomware",
                         tags=["ransomware","leak_site","onion"],
                         confidence="high",
                         description=f"Ransomware group {name} leak site",
                     ))
         return records
+
+    async def _upsert_onion_sites_from_iocs(self, records: List[Dict[str, Any]]) -> None:
+        if not self.db:
+            return
+        inserted = 0
+        for rec in records:
+            url = str(rec.get("ioc") or "").strip()
+            group = str(rec.get("threat_actor") or "unknown").strip()
+            if ".onion" not in url.lower() or not group:
+                continue
+            if not url.startswith(("http://", "https://")):
+                url = f"http://{url}"
+            try:
+                cur = await self.db._conn.execute(
+                    """INSERT INTO onion_sites (group_name, url, description, site_type, active, last_status)
+                       VALUES (?, ?, 'Discovered from ransomware.live fqdn', 'ransomware', 1, 'pending')
+                       ON CONFLICT(url) DO UPDATE SET
+                         group_name=COALESCE(NULLIF(excluded.group_name,''), group_name),
+                         description=CASE WHEN description IS NULL OR description='' THEN excluded.description ELSE description END,
+                         active=1""",
+                    (group, url),
+                )
+                if cur.rowcount > 0:
+                    inserted += 1
+            except Exception as exc:
+                self.logger.debug("RL onion upsert skipped %s: %s", url, exc)
+        if inserted:
+            await self.db._conn.commit()
+            self.logger.info("Ransomware.live: synced %d .onion leak sites into Dark Web Manager", inserted)
 
     async def get_group_profile(self, group_name):
         if not self._has_key: return None
@@ -340,7 +384,7 @@ class RansomwareLiveConnector(BaseConnector):
 
     async def get_all_posts(self, limit=500):
         raw = await self._get(RANSOMWATCH_POSTS_URL,
-            headers={"User-Agent": "CyberXTron-TIP/2.2"})
+            headers={"User-Agent": "ThreatIntel-TIP/2.2"})
         return self._extract_list(raw)[:limit] if raw else []
 
     async def search_victims(self, query):

@@ -23,7 +23,7 @@ tion
 INFO:     Waiting for 
 application startup.
 2026-04-02 20:20:58,324 [INFO] main: ============================================================
-2026-04-02 20:20:58,324 [INFO] main:   CyberXTron TIP v2.4 — Starting
+2026-04-02 20:20:58,324 [INFO] main:   ThreatIntel TIP v2.4 — Starting
 2026-04-02 20:20:58,324 [INFO] main:   AI        : GROQ
 2026-04-02 20:20:58,324 [INFO] main:   HIBR      : [ENABLED]
 2026-04-02 20:20:58,324 [INFO] main:   RL Pro    : [ENABLED]
@@ -115,7 +115,7 @@ shutdown complete.
 Traceback (most recent 
 call last):
   File "C:\Users\xtronuser
-\Downloads\CyberXTron_TIP_
+\Downloads\ThreatIntel_TIP_
 v2.4_FINAL\threat_intel_pl
 atform\venv\Lib\site-packa
 ges\uvicorn\server.py", 
@@ -148,7 +148,7 @@ exception occurred:
 Traceback (most recent 
 call last):
   File "C:\Users\xtronuser
-\Downloads\CyberXTron_TIP_
+\Downloads\ThreatIntel_TIP_
 v2.4_FINAL\threat_intel_pl
 atform\main.py", line 
 127, in <module>
@@ -159,14 +159,14 @@ port=settings.PORT,
 reload=False, 
 log_level="info")
   File "C:\Users\xtronuser
-\Downloads\CyberXTron_TIP_
+\Downloads\ThreatIntel_TIP_
 v2.4_FINAL\threat_intel_pl
 atform\venv\Lib\site-packa
 ges\uvicorn\main.py", 
 line 587, in run
     server.run()
   File "C:\Users\xtronuser
-\Downloads\CyberXTron_TIP_
+\Downloads\ThreatIntel_TIP_
 v2.4_FINAL\threat_intel_pl
 atform\venv\Lib\site-packa
 ges\uvicorn\server.py", 
@@ -225,7 +225,7 @@ _run
     self._context.run(self
 ._callback, *self._args)
   File "C:\Users\xtronuser
-\Downloads\CyberXTron_TIP_
+\Downloads\ThreatIntel_TIP_
 v2.4_FINAL\threat_intel_pl
 atform\venv\Lib\site-packa
 ges\uvicorn\server.py", 
@@ -233,7 +233,7 @@ line 78, in serve
     await self.startup(soc
 kets=sockets)
   File "C:\Users\xtronuser
-\Downloads\CyberXTron_TIP_
+\Downloads\ThreatIntel_TIP_
 v2.4_FINAL\threat_intel_pl
 atform\venv\Lib\site-packa
 ges\uvicorn\server.py", 

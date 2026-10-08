@@ -1,22 +1,16 @@
-import asyncio, aiosqlite
+import sqlite3
+conn = sqlite3.connect('e:/threat_intel_platform/data/threat_intel.db')
+print("=== Monthly counts ===")
+for row in conn.execute("SELECT strftime('%Y-%m', release_date) as month, count(*) FROM ics_advisories GROUP BY month ORDER BY month DESC LIMIT 5;").fetchall():
+    print(row)
 
-async def check():
-    async with aiosqlite.connect('data/threat_intel.db') as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT id, group_name, screenshot_path FROM onion_sites "
-            "WHERE screenshot_path IS NOT NULL AND screenshot_path != '' LIMIT 5"
-        ) as cur:
-            rows = await cur.fetchall()
-            for r in rows:
-                print(dict(r))
-        
-        async with db.execute(
-            "SELECT COUNT(*) as total, "
-            "SUM(CASE WHEN screenshot_path IS NOT NULL AND screenshot_path != '' THEN 1 ELSE 0 END) as with_ss "
-            "FROM onion_sites"
-        ) as cur:
-            row = await cur.fetchone()
-            print(f'Total sites: {row[0]}, With screenshots: {row[1]}')
+print("\n=== May 2026 sample (correct cols) ===")
+for row in conn.execute("SELECT ics_number, cve_id, release_date, nist_url, data_source FROM ics_advisories WHERE release_date LIKE '2026-05-%' LIMIT 5;").fetchall():
+    print(row)
 
-asyncio.run(check())
+print("\n=== Total count ===")
+print(conn.execute("SELECT count(*) FROM ics_advisories").fetchone())
+
+print("\n=== Recent ics_numbers from 2026 ===")
+for row in conn.execute("SELECT ics_number, cve_id, release_date FROM ics_advisories WHERE release_date LIKE '2026-%' ORDER BY release_date DESC LIMIT 10;").fetchall():
+    print(row)

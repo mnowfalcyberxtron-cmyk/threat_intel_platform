@@ -9,15 +9,48 @@ $ProjectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $ProjectRoot
 
 $VenvPython = Join-Path $ProjectRoot "venv\Scripts\python.exe"
+$VenvDir = Join-Path $ProjectRoot "venv"
 $Requirements = Join-Path $ProjectRoot "requirements.txt"
 $MainFile = Join-Path $ProjectRoot "main.py"
 $EnvFile = Join-Path $ProjectRoot ".env"
 
-if (-not (Test-Path $VenvPython)) {
-    Write-Host "[ERROR] Python venv not found at .\venv\Scripts\python.exe" -ForegroundColor Red
-    Write-Host "Create it first:" -ForegroundColor Yellow
-    Write-Host "  py -m venv venv" -ForegroundColor Yellow
-    exit 1
+function Test-PythonExe {
+    param([string]$Path)
+    if (-not (Test-Path $Path)) { return $false }
+    try {
+        & $Path --version *> $null
+        return $LASTEXITCODE -eq 0
+    } catch {
+        return $false
+    }
+}
+
+function Find-BootstrapPython {
+    foreach ($candidate in @("py", "python")) {
+        $cmd = Get-Command $candidate -ErrorAction SilentlyContinue
+        if (-not $cmd) { continue }
+        try {
+            & $candidate --version *> $null
+            if ($LASTEXITCODE -eq 0) { return $candidate }
+        } catch {}
+    }
+    return $null
+}
+
+if (-not (Test-PythonExe $VenvPython)) {
+    Write-Host "[WARN] Python venv is missing or stale at .\venv\Scripts\python.exe" -ForegroundColor Yellow
+    $BootstrapPython = Find-BootstrapPython
+    if (-not $BootstrapPython) {
+        Write-Host "[ERROR] No working Python interpreter was found." -ForegroundColor Red
+        Write-Host "Install Python 3.11+, then run .\run.ps1 again. The script will rebuild the venv automatically." -ForegroundColor Yellow
+        exit 1
+    }
+    Write-Host "[INFO] Rebuilding venv with $BootstrapPython ..." -ForegroundColor Cyan
+    & $BootstrapPython -m venv --clear $VenvDir
+    if ($LASTEXITCODE -ne 0 -or -not (Test-PythonExe $VenvPython)) {
+        Write-Host "[ERROR] Failed to rebuild Python venv." -ForegroundColor Red
+        exit 1
+    }
 }
 
 if (-not (Test-Path $MainFile)) {
@@ -85,7 +118,7 @@ else {
     Write-Host "[INFO] SkipInstall enabled, dependency installation skipped." -ForegroundColor Yellow
 }
 
-Write-Host "[INFO] Starting CyberXTron TIP ..." -ForegroundColor Green
+Write-Host "[INFO] Starting ThreatIntel TIP ..." -ForegroundColor Green
 Write-Host "[INFO] Dashboard: http://localhost:$Port/" -ForegroundColor Green
 Write-Host "[INFO] API Docs : http://localhost:$Port/api/docs" -ForegroundColor Green
 Write-Host ""

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # ============================================================
-# CyberXTron Threat Intelligence Platform — Setup Script
+# ThreatIntel Threat Intelligence Platform — Setup Script
 # ============================================================
 set -e
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; CYAN='\033[0;36m'; YELLOW='\033[1;33m'; NC='\033[0m'
 
 echo -e "${CYAN}========================================================${NC}"
-echo -e "${CYAN}  CyberXTron TIP — Setup${NC}"
+echo -e "${CYAN}  ThreatIntel TIP — Setup${NC}"
 echo -e "${CYAN}========================================================${NC}"
 
 # Python version check

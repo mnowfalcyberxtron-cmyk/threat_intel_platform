@@ -107,7 +107,7 @@ class IOCProcessor:
             p = val.split(".")
             if len(p) != 4: return False
             try: return all(0 <= int(x) <= 255 for x in p)
-            except: return False
+            except Exception: return False
         if itype == "domain": return "." in val and len(val) > 3
         if itype == "md5":    return len(val)==32  and all(c in "0123456789abcdef" for c in val)
         if itype == "sha256": return len(val)==64  and all(c in "0123456789abcdef" for c in val)

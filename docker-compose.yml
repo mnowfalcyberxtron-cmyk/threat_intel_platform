@@ -2,7 +2,7 @@
 services:
   app:
     build: .
-    container_name: cyberxtron_tip
+    container_name: threatintel_tip
     ports:
       - "8002:8002"
     env_file:
@@ -42,7 +42,7 @@ services:
 
   tor:
     image: peterdavehello/tor-socks-proxy:latest
-    container_name: cyberxtron_tor
+    container_name: threatintel_tor
     ports:
       - "9050:9050"
     restart: unless-stopped

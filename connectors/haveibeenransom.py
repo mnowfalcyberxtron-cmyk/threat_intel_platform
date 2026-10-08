@@ -35,7 +35,7 @@ class HaveIBeenRansomConnector(BaseConnector):
     async def fetch(self) -> List[Dict[str, Any]]:
         records = []
         headers = {
-            "User-Agent": "CyberXTron-TIP/2.3",
+            "User-Agent": "ThreatIntel-TIP/2.3",
             "Accept":     "application/json",
             "Cache-Control": "no-cache",
         }
@@ -104,7 +104,7 @@ class HaveIBeenRansomConnector(BaseConnector):
             elif isinstance(data, str) and data.strip().startswith("["):
                 import json
                 try: groups = json.loads(data)
-                except: pass
+                except Exception: pass
 
             if groups:
                 self.logger.info("RansomWatch groups: %d loaded", len(groups))

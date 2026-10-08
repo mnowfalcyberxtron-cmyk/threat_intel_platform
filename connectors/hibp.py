@@ -20,7 +20,7 @@ class HIBPConnector(BaseConnector):
     def headers(self) -> Dict[str, str]:
         return {
             "hibp-api-key": settings.HIBP_API_KEY,
-            "User-Agent": "CyberXTron-TIP/1.0",
+            "User-Agent": "ThreatIntel-TIP/1.0",
         }
 
     async def fetch(self) -> List[Dict[str, Any]]:

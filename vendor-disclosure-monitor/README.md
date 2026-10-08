@@ -80,7 +80,7 @@ Services:
 After first startup, pull your model inside the Ollama container:
 
 ```bash
-docker exec -it vdm-ollama ollama pull mnowfalcyberxtron/er
+docker exec -it vdm-ollama ollama pull mnowfalthreatintel/er
 ```
 
 Validate AI providers:

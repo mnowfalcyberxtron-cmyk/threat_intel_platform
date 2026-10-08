@@ -21,7 +21,7 @@ class HIBRConnector(BaseConnector):
         return {
             "Authorization": f"Bearer {settings.HIBR_API_KEY}",
             "Accept":        "application/json",
-            "User-Agent":    "CyberXTron-TIP/2.2",
+            "User-Agent":    "ThreatIntel-TIP/2.2",
         }
 
     async def fetch(self) -> List[Dict[str, Any]]:
@@ -118,17 +118,81 @@ class HIBRConnector(BaseConnector):
         url = f"{self.API_BASE}/metadata/{field}/{query}?page={page}"
         return await self._get(url, headers=self._headers)
 
-    async def search_fulldata(self, fields: str, query: str, search_after: int = 0):
+    async def search_fulldata(self, fields: str, query: str, search_after: int = 0, max_pages: int = 5):
         if not settings.HIBR_API_KEY: return None
-        url = f"{self.API_BASE}/fulldata/{fields}/{query}"
-        if search_after: url += f"?search_after={search_after}"
-        return await self._get(url, headers=self._headers)
+        
+        all_data = []
+        current_search_after = search_after
+        has_next = True
+        page_count = 0
+        first_resp = None
+        
+        while has_next and page_count < max_pages:
+            url = f"{self.API_BASE}/fulldata/{fields}/{query}"
+            if current_search_after: url += f"?search_after={current_search_after}"
+            
+            resp = await self._get(url, headers=self._headers)
+            if not isinstance(resp, dict):
+                break
+                
+            if first_resp is None:
+                first_resp = resp
+                
+            data = resp.get("data", [])
+            all_data.extend(data)
+            
+            current_search_after = resp.get("search_after")
+            has_next = resp.get("has_next_page", False)
+            if not current_search_after:
+                has_next = False
+                
+            page_count += 1
+            
+        if first_resp is None:
+            return None
+            
+        result = {**first_resp, "data": all_data, "has_next_page": has_next}
+        if current_search_after:
+            result["search_after"] = current_search_after
+        return result
 
-    async def search_fullstealer(self, fields: str, term: str, search_after: int = 0):
+    async def search_fullstealer(self, fields: str, term: str, search_after: int = 0, max_pages: int = 5):
         if not settings.HIBR_API_KEY: return None
-        url = f"{self.API_BASE}/fullstealer/{fields}/{term}"
-        if search_after: url += f"?search_after={search_after}"
-        return await self._get(url, headers=self._headers)
+        
+        all_matches = []
+        current_search_after = search_after
+        has_next = True
+        page_count = 0
+        first_resp = None
+        
+        while has_next and page_count < max_pages:
+            url = f"{self.API_BASE}/fullstealer/{fields}/{term}"
+            if current_search_after: url += f"?search_after={current_search_after}"
+            
+            resp = await self._get(url, headers=self._headers)
+            if not isinstance(resp, dict):
+                break
+                
+            if first_resp is None:
+                first_resp = resp
+                
+            matches = resp.get("matches", [])
+            all_matches.extend(matches)
+            
+            current_search_after = resp.get("search_after")
+            has_next = resp.get("has_next_page", False)
+            if not current_search_after:
+                has_next = False
+                
+            page_count += 1
+            
+        if first_resp is None:
+            return None
+            
+        result = {**first_resp, "matches": all_matches, "has_next_page": has_next}
+        if current_search_after:
+            result["search_after"] = current_search_after
+        return result
 
     async def get_total_breaches(self):
         data = await self._get(f"{self.BASE_URL}/breaches/total", headers=self._headers)

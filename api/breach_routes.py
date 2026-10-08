@@ -5,7 +5,8 @@ Provides endpoints for the Breach Market dashboard section.
 import asyncio
 import logging
 from typing import Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile, File
+from config import settings
 
 logger = logging.getLogger("api.breach")
 
@@ -129,22 +130,38 @@ async def list_markets(
     }
 
 
-@breach_router.post("/markets/refresh")
-async def refresh_markets():
-    """
-    Trigger a background refresh of breach market URLs from RansomLook.io.
-    Scrapes the /urls.csv endpoint and upserts all market entries.
-    """
+@breach_router.post("/excel/import")
+async def import_excel():
+    """Ingest the shared OneDrive Excel workbook into onion_sites + breach_markets."""
     db = get_db()
     await _ensure_table(db)
-    asyncio.create_task(_do_refresh(db))
-    return {"status": "triggered", "message": "Background refresh started from ransomlook.io"}
+    asyncio.create_task(_do_excel_import(db))
+    return {"status": "triggered", "message": "Background Excel ingestion started"}
 
 
-async def _do_refresh(db):
+async def _do_excel_import(db):
+    from connectors.excel_ingestion import run_excel_ingestion
+    from connectors.onion_monitor import OnionMonitorConnector
+    from connectors.ransomlook_market import RansomlookMarketConnector
+    try:
+        result = await run_excel_ingestion(db)
+        added = result.get("onion_added", 0) + result.get("markets_added", 0)
+        await db.update_source_status("excel_ingestion", "ok", added)
+        if settings.EXCEL_INGESTION_CHECK_STATUSES and result.get("onion_total_rows", 0) > 0:
+            asyncio.create_task(OnionMonitorConnector(db).run(pending_only=False))
+        if settings.EXCEL_INGESTION_CHECK_STATUSES and result.get("markets_total_rows", 0) > 0:
+            asyncio.create_task(RansomlookMarketConnector(db).check_all_markets())
+    except Exception as e:
+        await db.log("ERROR", "excel_ingestion", f"Excel ingest failed: {e}")
+        await db.update_source_status("excel_ingestion", "error", error_msg=str(e)[:200])
+
+
+@breach_router.post("/markets/refresh")
+async def refresh_markets():
     """Background task: use RansomlookMarketConnector to sync markets."""
     from connectors.ransomlook_market import RansomlookMarketConnector
     logger.info("Triggering breach market refresh via connector...")
+    db = get_db()
     try:
         conn = RansomlookMarketConnector(db=db)
         # We only want to refresh markets here, fetch() does both markets and victims.
@@ -180,10 +197,15 @@ async def check_market_status(market_id: int):
     from connectors.ransomlook_market import RansomlookMarketConnector
     conn = RansomlookMarketConnector(db)
     status_code, error_msg = await conn._check_url_robust(url)
+    screenshot_path = row["screenshot_path"]
+    if status_code == 200:
+        new_path = await conn._capture_screenshot(url, market_id)
+        if new_path:
+            screenshot_path = new_path
 
     await db._conn.execute(
-        "UPDATE breach_markets SET last_status=?, last_checked=datetime('now'), updated_at=datetime('now') WHERE id=?",
-        (str(status_code) if status_code else f"error:{error_msg[:40]}", market_id),
+        "UPDATE breach_markets SET last_status=?, last_checked=datetime('now'), updated_at=datetime('now'), screenshot_path=? WHERE id=?",
+        (str(status_code) if status_code else f"error:{error_msg[:40]}", screenshot_path, market_id),
     )
     await db._conn.commit()
 
@@ -193,6 +215,7 @@ async def check_market_status(market_id: int):
         "url": url,
         "status_code": status_code,
         "online": status_code == 200,
+        "screenshot_path": screenshot_path,
         "error": error_msg,
     }
 
@@ -261,3 +284,57 @@ async def delete_market(market_id: int):
     await db._conn.execute("DELETE FROM breach_markets WHERE id=?", (market_id,))
     await db._conn.commit()
     return {"status": "deleted", "id": market_id, "name": row["name"]}
+
+
+@breach_router.post("/excel/upload")
+async def upload_excel(file: UploadFile = File(...)):
+    """Upload a local Excel file and run the ingestion process."""
+    db = get_db()
+    await _ensure_table(db)
+    
+    contents = await file.read()
+    
+    from connectors.excel_ingestion import _parse_excel, _upsert_onion_sites, _upsert_breach_markets, _upsert_ics_advisories
+    from connectors.onion_monitor import OnionMonitorConnector
+    from connectors.ransomlook_market import RansomlookMarketConnector
+    
+    try:
+        sheet1_rows, sheet2_rows, sheet3_rows = _parse_excel(contents)
+        
+        onion_added = 0
+        markets_added = 0
+        ics_added = 0
+        
+        if sheet1_rows:
+            onion_added = await _upsert_onion_sites(db, sheet1_rows)
+        if sheet2_rows:
+            markets_added = await _upsert_breach_markets(db, sheet2_rows)
+        if sheet3_rows:
+            ics_added = await _upsert_ics_advisories(db, sheet3_rows)
+            
+        # Trigger background status checks if needed
+        if settings.EXCEL_INGESTION_CHECK_STATUSES:
+            if len(sheet1_rows) > 0:
+                asyncio.create_task(OnionMonitorConnector(db).run(pending_only=False))
+            if len(sheet2_rows) > 0:
+                asyncio.create_task(RansomlookMarketConnector(db).check_all_markets())
+                
+        await db.log("INFO", "excel_upload", f"Uploaded local Excel: +{onion_added} onions, +{markets_added} markets, +{ics_added} ICS rows")
+        
+        return {
+            "status": "success",
+            "onion_added": onion_added,
+            "markets_added": markets_added,
+            "ics_added": ics_added,
+            "onion_total": len(sheet1_rows),
+            "markets_total": len(sheet2_rows),
+            "ics_total": len(sheet3_rows),
+            "message": f"Ingestion successful: +{onion_added} onions, +{markets_added} markets, +{ics_added} ICS rows.",
+        }
+    except Exception as e:
+        logger.error(f"Excel upload failed: {e}")
+        try:
+            await db.log("ERROR", "excel_upload", f"Excel upload failed: {e}")
+        except Exception:
+            pass
+        raise HTTPException(500, f"Excel parsing/upsert failed: {str(e)}")

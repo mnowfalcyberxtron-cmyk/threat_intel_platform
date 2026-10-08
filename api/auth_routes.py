@@ -5,10 +5,13 @@ import os
 import json
 import logging
 import asyncio
+import html
+import ssl
 from datetime import datetime
 import httpx
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.utils import formataddr
 from fastapi import APIRouter, HTTPException, Depends, Request, BackgroundTasks
 from pydantic import BaseModel
 from database.db import Database
@@ -21,19 +24,50 @@ router = APIRouter(prefix="/api/auth", tags=["Auth"])
 _db: Database = None
 
 # Configuration for Admin Email Notifications
-ADMIN_EMAIL = "feedsautomate@gmail.com"
-ADMIN_PASS = "vblmiceoaklsrklr"
+ADMIN_EMAIL = settings.ADMIN_EMAIL
 
-def send_admin_notification(user_name: str, user_email: str):
+def is_master_admin_email(email: str) -> bool:
+    return bool(email) and email.strip().lower() == settings.ADMIN_EMAIL.lower()
+
+async def require_admin(db: Database, email: str) -> dict:
+    """Accept either the persisted admin user or the configured master admin."""
+    if is_master_admin_email(email):
+        user = await db.get_user_by_email(email)
+        return user or {
+            "id": 0,
+            "name": "Platform Administrator",
+            "email": settings.ADMIN_EMAIL,
+            "role": "admin",
+        }
+
+    user = await db.get_user_by_email(email)
+    if not user or user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin privileges required.")
+    return user
+
+def _smtp_recipients() -> list[str]:
+    return [addr.strip() for addr in settings.SMTP_TO.split(",") if addr.strip()]
+
+def send_admin_notification(user_name: str, user_email: str) -> bool:
     """Send an email notification to the admin on new signup."""
+    recipients = _smtp_recipients()
+    if not settings.SMTP_HOST or not settings.SMTP_FROM or not recipients:
+        logger.warning("Signup email skipped: SMTP_HOST, SMTP_FROM, or SMTP_TO is missing")
+        return False
+    if settings.SMTP_USERNAME and not settings.SMTP_PASSWORD:
+        logger.warning("Signup email skipped: SMTP_USERNAME is set but SMTP_PASSWORD is missing")
+        return False
+
     try:
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         msg = MIMEMultipart('alternative')
-        msg['From'] = ADMIN_EMAIL
-        msg['To'] = ADMIN_EMAIL
-        msg['Subject'] = f"🚨 New User Signup: CyberXTron TIP — {user_name}"
+        msg['From'] = formataddr(("ThreatIntel TIP", settings.SMTP_FROM))
+        msg['To'] = ", ".join(recipients)
+        msg['Subject'] = f"🚨 New User Signup: ThreatIntel TIP — {user_name}"
+        safe_name = html.escape(user_name)
+        safe_email = html.escape(user_email)
 
-        text_body = f"""New user registered on CyberXTron Threat Intelligence Platform.
+        text_body = f"""New user registered on ThreatIntel Threat Intelligence Platform.
 
 Name: {user_name}
 Email: {user_email}
@@ -44,10 +78,10 @@ Login to the platform to manage this user."""
         html_body = f"""<html><body style="font-family:Arial,sans-serif;background:#0d1117;color:#e6edf3;padding:20px">
 <div style="max-width:500px;margin:0 auto;background:#161b22;border:1px solid #30363d;border-radius:8px;padding:24px">
   <h2 style="color:#00d4ff;margin-top:0">🚨 New User Signup</h2>
-  <p style="color:#8b949e;font-size:13px">CyberXTron Threat Intelligence Platform</p>
+  <p style="color:#8b949e;font-size:13px">ThreatIntel Threat Intelligence Platform</p>
   <table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:16px">
-    <tr><td style="padding:8px 0;color:#8b949e;width:80px">Name</td><td style="color:#e6edf3;font-weight:bold">{user_name}</td></tr>
-    <tr><td style="padding:8px 0;color:#8b949e">Email</td><td style="color:#e6edf3">{user_email}</td></tr>
+    <tr><td style="padding:8px 0;color:#8b949e;width:80px">Name</td><td style="color:#e6edf3;font-weight:bold">{safe_name}</td></tr>
+    <tr><td style="padding:8px 0;color:#8b949e">Email</td><td style="color:#e6edf3">{safe_email}</td></tr>
     <tr><td style="padding:8px 0;color:#8b949e">Time</td><td style="color:#e6edf3">{now} IST</td></tr>
   </table>
   <p style="margin-top:20px;font-size:11px;color:#8b949e">Login to the admin panel to manage this user's access.</p>
@@ -57,21 +91,87 @@ Login to the platform to manage this user."""
         msg.attach(MIMEText(text_body, 'plain'))
         msg.attach(MIMEText(html_body, 'html'))
 
-        server = smtplib.SMTP('smtp.gmail.com', 587, timeout=15)
-        server.set_debuglevel(0)
-        server.ehlo()
-        server.starttls()
-        server.ehlo()
-        server.login(ADMIN_EMAIL, ADMIN_PASS)
-        server.send_message(msg)
-        server.quit()
+        if settings.SMTP_USE_SSL:
+            server = smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, timeout=settings.SMTP_TIMEOUT)
+        else:
+            server = smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=settings.SMTP_TIMEOUT)
+
+        with server:
+            server.set_debuglevel(0)
+            server.ehlo()
+            if settings.SMTP_USE_TLS and not settings.SMTP_USE_SSL:
+                server.starttls(context=ssl.create_default_context())
+                server.ehlo()
+            if settings.SMTP_USERNAME and settings.SMTP_PASSWORD:
+                server.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
+            server.send_message(msg, from_addr=settings.SMTP_FROM, to_addrs=recipients)
         logger.info(f"Admin notification email sent for new user: {user_email}")
+        return True
     except Exception as e:
         logger.error(f"Failed to send admin email: {e}")
+        return False
+
+
+def send_login_notification(user_name: str, user_email: str, ip_address: str) -> bool:
+    """Send an email notification to the admin on new login."""
+    recipients = _smtp_recipients()
+    if not settings.SMTP_HOST or not settings.SMTP_FROM or not recipients:
+        return False
+
+    try:
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        msg = MIMEMultipart('alternative')
+        msg['From'] = formataddr(("ThreatIntel TIP", settings.SMTP_FROM))
+        msg['To'] = ", ".join(recipients)
+        msg['Subject'] = f"🔒 User Login: ThreatIntel TIP — {user_name}"
+        safe_name = html.escape(user_name)
+        safe_email = html.escape(user_email)
+        safe_ip = html.escape(ip_address)
+
+        text_body = f"""User logged into ThreatIntel Threat Intelligence Platform.
+
+Name: {user_name}
+Email: {user_email}
+IP Address: {ip_address}
+Time: {now} IST"""
+
+        html_body = f"""<html><body style="font-family:Arial,sans-serif;background:#0d1117;color:#e6edf3;padding:20px">
+<div style="max-width:500px;margin:0 auto;background:#161b22;border:1px solid #30363d;border-radius:8px;padding:24px">
+  <h2 style="color:#00d4ff;margin-top:0">🔒 User Login Detected</h2>
+  <table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:16px">
+    <tr><td style="padding:8px 0;color:#8b949e;width:80px">Name</td><td style="color:#e6edf3;font-weight:bold">{safe_name}</td></tr>
+    <tr><td style="padding:8px 0;color:#8b949e">Email</td><td style="color:#e6edf3">{safe_email}</td></tr>
+    <tr><td style="padding:8px 0;color:#8b949e">IP Address</td><td style="color:#e6edf3">{safe_ip}</td></tr>
+    <tr><td style="padding:8px 0;color:#8b949e">Time</td><td style="color:#e6edf3">{now} IST</td></tr>
+  </table>
+</div>
+</body></html>"""
+
+        msg.attach(MIMEText(text_body, 'plain'))
+        msg.attach(MIMEText(html_body, 'html'))
+
+        if settings.SMTP_USE_SSL:
+            server = smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, timeout=settings.SMTP_TIMEOUT)
+        else:
+            server = smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=settings.SMTP_TIMEOUT)
+
+        with server:
+            server.set_debuglevel(0)
+            server.ehlo()
+            if settings.SMTP_USE_TLS and not settings.SMTP_USE_SSL:
+                server.starttls(context=ssl.create_default_context())
+                server.ehlo()
+            if settings.SMTP_USERNAME and settings.SMTP_PASSWORD:
+                server.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
+            server.send_message(msg, from_addr=settings.SMTP_FROM, to_addrs=recipients)
+        return True
+    except Exception as e:
+        logger.error(f"Failed to send login email: {e}")
+        return False
 
 def hash_password(password: str) -> str:
     """Simple SHA256 hash for passwords with a static salt (for demo/simplicity)."""
-    salt = "CyberXTron_Secret_Salt_2026!"
+    salt = settings.PASSWORD_SALT or settings.ADMIN_PASSWORD or "local-dev-only-change-me"
     return hashlib.sha256((password + salt).encode('utf-8')).hexdigest()
 
 def validate_password(password: str) -> bool:
@@ -104,7 +204,7 @@ async def signup(req: SignupRequest, request: Request, background_tasks: Backgro
         raise HTTPException(status_code=400, detail="Email already registered.")
     
     # Auto-assign admin role to the specific email
-    role = "admin" if req.email.lower() == ADMIN_EMAIL.lower() else "user"
+    role = "admin" if is_master_admin_email(req.email) else "user"
     
     pw_hash = hash_password(req.password)
     user_id = await db.create_user(req.name, req.email, pw_hash, role)
@@ -118,24 +218,34 @@ async def signup(req: SignupRequest, request: Request, background_tasks: Backgro
     return {"message": "Signup successful", "user_id": user_id, "role": role}
 
 @router.post("/login")
-async def login(req: LoginRequest, request: Request):
+async def login(req: LoginRequest, request: Request, background_tasks: BackgroundTasks):
     if not _db: raise HTTPException(status_code=500, detail="Database not initialized")
     db = _db
-    user = await db.get_user_by_email(req.email)
-    
-    if not user:
-        raise HTTPException(status_code=401, detail="Invalid email or password.")
-    
-    pw_hash = hash_password(req.password)
-    if user["password"] != pw_hash:
-        raise HTTPException(status_code=401, detail="Invalid email or password.")
+    # Master Admin Check
+    if settings.ADMIN_PASSWORD and is_master_admin_email(req.email) and req.password == settings.ADMIN_PASSWORD:
+        user = {
+            "id": 0,
+            "name": "Platform Administrator",
+            "email": settings.ADMIN_EMAIL,
+            "role": "admin"
+        }
+    else:
+        user = await db.get_user_by_email(req.email)
+        if not user:
+            raise HTTPException(status_code=401, detail="Invalid email or password.")
+        
+        pw_hash = hash_password(req.password)
+        if user["password"] != pw_hash:
+            raise HTTPException(status_code=401, detail="Invalid email or password.")
     
     # Log activity
     await db.log_user_activity(user['id'], "LOGIN", f"User logged in from {request.client.host}", request.client.host)
+    
+    # Send login email notification
+    background_tasks.add_task(send_login_notification, user["name"], user["email"], request.client.host)
 
-    # Normally we'd return a JWT here. For simplicity, we return user info
-    # The frontend will store this in localStorage
-    return {
+    from fastapi.responses import JSONResponse
+    resp = JSONResponse({
         "message": "Login successful",
         "user": {
             "id": user["id"],
@@ -143,49 +253,91 @@ async def login(req: LoginRequest, request: Request):
             "email": user["email"],
             "role": user["role"]
         }
+    })
+    resp.set_cookie(
+        key="session_token", 
+        value=f"{user['id']}:{user['email']}",
+        httponly=True, 
+        max_age=86400,
+        samesite="lax"
+    )
+    return resp
+
+@router.get("/logout")
+async def logout():
+    from fastapi.responses import JSONResponse
+    resp = JSONResponse({"message": "Logout successful"})
+    resp.delete_cookie("session_token")
+    return resp
+
+@router.get("/me")
+async def get_current_user(request: Request):
+    if not _db: raise HTTPException(status_code=500, detail="Database not initialized")
+    token = request.cookies.get("session_token")
+    if not token or ":" not in token:
+        raise HTTPException(status_code=401, detail="Not logged in")
+    
+    user_id_str, email = token.split(":", 1)
+    
+    if is_master_admin_email(email):
+        return {
+            "id": 0,
+            "name": "Platform Administrator",
+            "email": settings.ADMIN_EMAIL,
+            "role": "admin"
+        }
+        
+    user = await _db.get_user_by_email(email)
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+        
+    return {
+        "id": user["id"],
+        "name": user["name"],
+        "email": user["email"],
+        "role": user["role"]
     }
 
 @router.get("/admin/users")
-async def get_all_users(email: str, request: Request):
-    """Admin-only route to view all users."""
+async def get_all_users(request: Request):
+    token = request.cookies.get("session_token")
+    if not token or ":" not in token: raise HTTPException(status_code=401, detail="Not logged in")
+    _, email = token.split(":", 1)
     if not _db: raise HTTPException(status_code=500, detail="Database not initialized")
     db = _db
-    user = await db.get_user_by_email(email)
-    if not user or user["role"] != "admin":
-        raise HTTPException(status_code=403, detail="Admin privileges required.")
+    await require_admin(db, email)
     users = await db.get_all_users()
     return users
 
 @router.delete("/admin/users/{user_id}")
-async def delete_user(user_id: int, email: str, request: Request):
-    """Admin-only: permanently delete a user by ID."""
+async def delete_user(user_id: int, request: Request):
+    token = request.cookies.get("session_token")
+    if not token or ":" not in token: raise HTTPException(status_code=401, detail="Not logged in")
+    _, email = token.split(":", 1)
     if not _db: raise HTTPException(status_code=500, detail="Database not initialized")
     db = _db
-    requester = await db.get_user_by_email(email)
-    if not requester or requester["role"] != "admin":
-        raise HTTPException(status_code=403, detail="Admin privileges required.")
-    # Prevent admin from deleting themselves
-    if requester["id"] == user_id:
+    requester = await require_admin(db, email)
+    if requester.get("id") == user_id:
         raise HTTPException(status_code=400, detail="Cannot delete your own admin account.")
     
     deleted = await db.delete_user(user_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="User not found.")
     
-    # Log activity
     await db.log_user_activity(requester["id"], "ADMIN_DELETE_USER", f"Admin deleted user ID {user_id}", request.client.host)
     
     logger.info(f"Admin {email} deleted user ID {user_id}")
     return {"message": "User deleted successfully."}
 
 @router.get("/admin/users/{user_id}/activity")
-async def get_user_activity(user_id: int, email: str, request: Request):
+async def get_user_activity(user_id: int, request: Request):
+    token = request.cookies.get("session_token")
+    if not token or ":" not in token: raise HTTPException(status_code=401, detail="Not logged in")
+    _, email = token.split(":", 1)
     """Admin-only: fetch recent activity for a specific user."""
     if not _db: raise HTTPException(status_code=500, detail="Database not initialized")
     db = _db
-    requester = await db.get_user_by_email(email)
-    if not requester or requester["role"] != "admin":
-        raise HTTPException(status_code=403, detail="Admin privileges required.")
+    await require_admin(db, email)
     
     activity = await db.get_user_activity(user_id)
     return activity
@@ -267,16 +419,41 @@ async def check_api_health(request: Request):
         if not key: return {"status": "SKIPPED", "detail": "No key provided"}
         try:
             async with httpx.AsyncClient(timeout=timeout) as client:
-                res = await client.post("https://threatfox-api.abuse.ch/api/v1/", json={"query": "get_iocs", "days": 1}, headers={"API-KEY": key})
+                res = await client.post("https://threatfox-api.abuse.ch/api/v1/", json={"query": "get_iocs", "days": 1}, headers={"Auth-Key": key})
                 return {"status": "OK" if res.status_code == 200 else "ERROR", "detail": f"HTTP {res.status_code}"}
         except Exception as e: return {"status": "ERROR", "detail": str(e)}
 
     async def check_malwarebazaar():
-        key = settings.MALWAREBAZAAR_API_KEY
+        key = settings.MALWAREBAZAAR_API_KEY or settings.THREATFOX_API_KEY
         if not key: return {"status": "SKIPPED", "detail": "No key provided"}
         try:
             async with httpx.AsyncClient(timeout=timeout) as client:
-                res = await client.post("https://mb-api.abuse.ch/api/v1/", data={"query": "get_info", "hash": "7de2c1bf58bce09eece701460f17f422"}, headers={"API-KEY": key})
+                res = await client.post("https://mb-api.abuse.ch/api/v1/", data={"query": "get_info", "hash": "7de2c1bf58bce09eece701460f17f422"}, headers={"Auth-Key": key})
+                return {"status": "OK" if res.status_code == 200 else "ERROR", "detail": f"HTTP {res.status_code}"}
+        except Exception as e: return {"status": "ERROR", "detail": str(e)}
+
+    async def check_rapidapi_ics():
+        key = settings.RAPIDAPI_KEY
+        if not key: return {"status": "SKIPPED", "detail": "No key provided"}
+        try:
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                res = await client.get(
+                    "https://ics-ap-apis.p.rapidapi.com/vendors",
+                    headers={"x-rapidapi-host": "ics-ap-apis.p.rapidapi.com", "x-rapidapi-key": key},
+                )
+                return {"status": "OK" if res.status_code == 200 else "ERROR", "detail": f"HTTP {res.status_code}"}
+        except Exception as e: return {"status": "ERROR", "detail": str(e)}
+
+    async def check_nvd():
+        key = settings.NVD_API_KEY
+        if not key: return {"status": "SKIPPED", "detail": "No key provided"}
+        try:
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                res = await client.get(
+                    "https://services.nvd.nist.gov/rest/json/cves/2.0",
+                    params={"cveId": "CVE-2024-26153"},
+                    headers={"apiKey": key},
+                )
                 return {"status": "OK" if res.status_code == 200 else "ERROR", "detail": f"HTTP {res.status_code}"}
         except Exception as e: return {"status": "ERROR", "detail": str(e)}
 
@@ -289,5 +466,7 @@ async def check_api_health(request: Request):
     results["AbuseIPDB"] = await check_abuseipdb()
     results["ThreatFox"] = await check_threatfox()
     results["MalwareBazaar"] = await check_malwarebazaar()
+    results["ICS Advisory RapidAPI"] = await check_rapidapi_ics()
+    results["NVD CVSS"] = await check_nvd()
 
     return results

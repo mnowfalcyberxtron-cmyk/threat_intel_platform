@@ -1,0 +1,231 @@
+2026-06-01 13:57:50,816 [INFO] engine.ai: AI Engine initialized — provider: groq
+2026-06-01 13:57:51,129 [INFO] main: ============================================================
+2026-06-01 13:57:51,131 [INFO] main:   ThreatIntel TIP v2.4 — Starting
+2026-06-01 13:57:51,131 [INFO] main:   AI        : GROQ
+2026-06-01 13:57:51,133 [INFO] main:   HIBR      : [ENABLED]
+2026-06-01 13:57:51,135 [INFO] main:   RL Pro    : [ENABLED]
+2026-06-01 13:57:51,137 [INFO] main:   Tor/DW    : [ENABLED]
+2026-06-01 13:57:51,139 [INFO] main:   WebFeed   : every 5 min
+2026-06-01 13:57:51,142 [INFO] main:   Advisories: Top 25 companies — every 30 min
+2026-06-01 13:57:51,144 [INFO] main: ============================================================
+2026-06-01 13:57:51,670 [INFO] database: Database ready: data/threat_intel.db
+2026-06-01 13:57:51,672 [INFO] api.advisory: ICS Advisory: initializing on startup...
+2026-06-01 13:57:52,931 [INFO] api.advisory: ICS Advisory: SQLite cache stale or missing current-month data (fresh=True, current_month=False); syncing
+2026-06-01 13:57:52,932 [INFO] api.advisory: ICS Advisory: syncing data from APIs to SQLite...
+2026-06-01 13:57:52,933 [INFO] api.advisory: ICS Advisory: starting SQLite sync
+2026-06-01 13:57:52,934 [INFO] api.advisory: ICS Advisory: SQLite cache empty, fetching from APIs...
+2026-06-01 13:57:52,936 [INFO] api.advisory: ICS Advisory: fetching from RapidAPI...
+2026-06-01 13:57:55,160 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/latest/100 "HTTP/1.1 200 OK"
+2026-06-01 13:57:55,615 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-120-02 "HTTP/1.1 200 OK"
+2026-06-01 13:57:56,132 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-118-01 "HTTP/1.1 200 OK"
+2026-06-01 13:57:56,458 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-62-01 "HTTP/1.1 200 OK"
+2026-06-01 13:57:56,495 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-120-01 "HTTP/1.1 200 OK"
+2026-06-01 13:57:56,499 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-120-04 "HTTP/1.1 200 OK"
+2026-06-01 13:57:56,520 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-120-06 "HTTP/1.1 200 OK"
+2026-06-01 13:57:56,526 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-120-05 "HTTP/1.1 200 OK"
+2026-06-01 13:57:56,547 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-25-128-03 "HTTP/1.1 200 OK"
+2026-06-01 13:57:56,557 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-120-03 "HTTP/1.1 200 OK"
+2026-06-01 13:57:56,606 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-113-02 "HTTP/1.1 200 OK"
+2026-06-01 13:57:56,899 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-113-01 "HTTP/1.1 200 OK"
+2026-06-01 13:57:56,915 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-25-114-01 "HTTP/1.1 200 OK"
+2026-06-01 13:57:56,919 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-113-03 "HTTP/1.1 200 OK"
+2026-06-01 13:57:56,954 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-111-08 "HTTP/1.1 200 OK"
+2026-06-01 13:57:56,972 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-111-10 "HTTP/1.1 200 OK"
+2026-06-01 13:57:56,981 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-113-05 "HTTP/1.1 200 OK"
+2026-06-01 13:57:56,981 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-113-04 "HTTP/1.1 200 OK"
+2026-06-01 13:57:57,065 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-111-02 "HTTP/1.1 200 OK"
+2026-06-01 13:57:57,310 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-111-09 "HTTP/1.1 200 OK"
+2026-06-01 13:57:57,344 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-111-07 "HTTP/1.1 200 OK"
+2026-06-01 13:57:57,346 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-111-04 "HTTP/1.1 200 OK"
+2026-06-01 13:57:57,403 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-111-01 "HTTP/1.1 200 OK"
+2026-06-01 13:57:57,410 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-111-12 "HTTP/1.1 200 OK"
+2026-06-01 13:57:57,413 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-111-06 "HTTP/1.1 200 OK"
+2026-06-01 13:57:57,427 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-111-11 "HTTP/1.1 200 OK"
+2026-06-01 13:57:57,481 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-111-03 "HTTP/1.1 200 OK"
+2026-06-01 13:57:57,739 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-111-05 "HTTP/1.1 200 OK"
+2026-06-01 13:57:57,765 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-106-02 "HTTP/1.1 200 OK"
+2026-06-01 13:57:57,768 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-106-01 "HTTP/1.1 200 OK"
+2026-06-01 13:57:57,842 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-106-03 "HTTP/1.1 200 OK"
+2026-06-01 13:57:57,849 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-106-04 "HTTP/1.1 200 OK"
+2026-06-01 13:57:57,864 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-25-345-10 "HTTP/1.1 200 OK"
+2026-06-01 13:57:57,869 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-099-02 "HTTP/1.1 200 OK"
+2026-06-01 13:57:57,881 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-099-01 "HTTP/1.1 200 OK"
+2026-06-01 13:57:58,154 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-097-01 "HTTP/1.1 200 OK"
+2026-06-01 13:57:58,169 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-24-338-04 "HTTP/1.1 200 OK"
+2026-06-01 13:57:58,175 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-24-184-03 "HTTP/1.1 200 OK"
+2026-06-01 13:57:58,280 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-092-01 "HTTP/1.1 200 OK"
+2026-06-01 13:57:58,287 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-092-02 "HTTP/1.1 200 OK"
+2026-06-01 13:57:58,295 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-092-03 "HTTP/1.1 200 OK"
+2026-06-01 13:57:58,304 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-055-03 "HTTP/1.1 200 OK"
+2026-06-01 13:57:58,370 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-25-037-02 "HTTP/1.1 200 OK"
+2026-06-01 13:57:58,586 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-24-324-01 "HTTP/1.1 200 OK"
+2026-06-01 13:57:58,592 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-090-01 "HTTP/1.1 200 OK"
+2026-06-01 13:57:58,617 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-090-02 "HTTP/1.1 200 OK"
+2026-06-01 13:57:58,696 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-085-01 "HTTP/1.1 200 OK"
+2026-06-01 13:57:58,721 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-085-03 "HTTP/1.1 200 OK"
+2026-06-01 13:57:58,729 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-069-03 "HTTP/1.1 200 OK"
+2026-06-01 13:57:58,741 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-085-02 "HTTP/1.1 200 OK"
+2026-06-01 13:57:58,791 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-083-02 "HTTP/1.1 200 OK"
+2026-06-01 13:57:58,996 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSMA-25-364-01 "HTTP/1.1 200 OK"
+2026-06-01 13:57:59,001 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-083-01 "HTTP/1.1 200 OK"
+2026-06-01 13:57:59,005 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSMA-26-083-01 "HTTP/1.1 200 OK"
+2026-06-01 13:57:59,099 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-083-03 "HTTP/1.1 200 OK"
+2026-06-01 13:57:59,124 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-078-08 "HTTP/1.1 200 OK"
+2026-06-01 13:57:59,139 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-078-01 "HTTP/1.1 200 OK"
+2026-06-01 13:57:59,155 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-078-02 "HTTP/1.1 200 OK"
+2026-06-01 13:57:59,200 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-078-03 "HTTP/1.1 200 OK"
+2026-06-01 13:57:59,383 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-078-05 "HTTP/1.1 200 OK"
+2026-06-01 13:57:59,417 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-078-06 "HTTP/1.1 200 OK"
+2026-06-01 13:57:59,422 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-078-07 "HTTP/1.1 200 OK"
+2026-06-01 13:57:59,509 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-078-04 "HTTP/1.1 200 OK"
+2026-06-01 13:57:59,524 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-076-02 "HTTP/1.1 200 OK"
+2026-06-01 13:57:59,554 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-015-10 "HTTP/1.1 200 OK"
+2026-06-01 13:57:59,583 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-076-03 "HTTP/1.1 200 OK"
+2026-06-01 13:57:59,616 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-076-04 "HTTP/1.1 200 OK"
+2026-06-01 13:57:59,790 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-25-160-02 "HTTP/1.1 200 OK"
+2026-06-01 13:57:59,830 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-076-01 "HTTP/1.1 200 OK"
+2026-06-01 13:57:59,847 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-071-01 "HTTP/1.1 200 OK"
+2026-06-01 13:57:59,917 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-071-02 "HTTP/1.1 200 OK"
+2026-06-01 13:57:59,932 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-071-05 "HTTP/1.1 200 OK"
+2026-06-01 13:57:59,980 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-071-03 "HTTP/1.1 200 OK"
+2026-06-01 13:58:00,007 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-071-04 "HTTP/1.1 200 OK"
+2026-06-01 13:58:00,027 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-048-04 "HTTP/1.1 200 OK"
+2026-06-01 13:58:00,158 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-071-06 "HTTP/1.1 200 OK"
+2026-06-01 13:58:00,240 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-22-020-01 "HTTP/1.1 200 OK"
+2026-06-01 13:58:00,248 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-24-184-03 "HTTP/1.1 200 OK"
+2026-06-01 13:58:00,333 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-069-01 "HTTP/1.1 200 OK"
+2026-06-01 13:58:00,339 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-069-02 "HTTP/1.1 200 OK"
+2026-06-01 13:58:00,419 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-25-343-01 "HTTP/1.1 200 OK"
+2026-06-01 13:58:00,430 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-064-01 "HTTP/1.1 200 OK"
+2026-06-01 13:58:00,459 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-25-350-02 "HTTP/1.1 200 OK"
+2026-06-01 13:58:00,599 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-25-023-02 "HTTP/1.1 200 OK"
+2026-06-01 13:58:00,770 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-062-07 "HTTP/1.1 200 OK"
+2026-06-01 13:58:00,786 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-062-05 "HTTP/1.1 200 OK"
+2026-06-01 13:58:00,833 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-062-02 "HTTP/1.1 200 OK"
+2026-06-01 13:58:00,851 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-062-03 "HTTP/1.1 200 OK"
+2026-06-01 13:58:00,874 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-062-04 "HTTP/1.1 200 OK"
+2026-06-01 13:58:00,892 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-062-08 "HTTP/1.1 200 OK"
+2026-06-01 13:58:00,901 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-062-06 "HTTP/1.1 200 OK"
+2026-06-01 13:58:01,047 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-25-133-02 "HTTP/1.1 200 OK"
+2026-06-01 13:58:01,212 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-057-10 "HTTP/1.1 200 OK"
+2026-06-01 13:58:01,222 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-057-07 "HTTP/1.1 200 OK"
+2026-06-01 13:58:01,265 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-057-04 "HTTP/1.1 200 OK"
+2026-06-01 13:58:01,270 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-057-02 "HTTP/1.1 200 OK"
+2026-06-01 13:58:01,294 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-25-203-04 "HTTP/1.1 200 OK"
+2026-06-01 13:58:01,326 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-057-03 "HTTP/1.1 200 OK"
+2026-06-01 13:58:01,331 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-057-08 "HTTP/1.1 200 OK"
+2026-06-01 13:58:01,496 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-057-05 "HTTP/1.1 200 OK"
+2026-06-01 13:58:01,628 [INFO] httpx: HTTP Request: GET https://ics-ap-apis.p.rapidapi.com/advisories/ICSA-26-057-01 "HTTP/1.1 200 OK"
+2026-06-01 13:58:01,644 [INFO] api.advisory: ICS Advisory: RapidAPI returned 465 CVE rows
+2026-06-01 13:58:05,451 [INFO] connectors.excel_ingestion: [ExcelIngestion] Extracted FileGetUrl from OneDrive page
+2026-06-01 13:58:06,780 [INFO] connectors.excel_ingestion: [ExcelIngestion] Downloaded Excel file: 7424 bytes
+2026-06-01 13:58:07,956 [INFO] connectors.excel_ingestion: [ExcelIngestion] Sheets found: ['Sheet1', 'Sheet3', 'Sheet2']
+2026-06-01 13:58:07,958 [INFO] connectors.excel_ingestion: [ExcelIngestion] Mapped sheets: S1(Onion)=Sheet1, S2(Market)=Sheet3, S3(ICS)=Sheet2
+2026-06-01 13:58:07,960 [INFO] connectors.excel_ingestion: [ExcelIngestion] Sheet1 onion rows (Sheet1): 0
+2026-06-01 13:58:07,961 [INFO] connectors.excel_ingestion: [ExcelIngestion] Sheet2 breach market rows (Sheet3): 0
+2026-06-01 13:58:07,964 [INFO] connectors.excel_ingestion: [ExcelIngestion] Sheet3 ICS CVE rows (Sheet2): 0
+2026-06-01 13:58:07,967 [INFO] api.advisory: ICS Advisory: workbook Sheet3 returned 0 CVE rows
+2026-06-01 13:58:07,969 [INFO] api.advisory: ICS Advisory: fetching CSV cache from GitHub...
+2026-06-01 13:58:09,928 [INFO] httpx: HTTP Request: GET https://raw.githubusercontent.com/icsadvprj/ICS-Advisory-Project/main/ICS-CERT_ADV/CISA_ICS_ADV_Master.csv "HTTP/1.1 200 OK"
+2026-06-01 13:58:14,701 [INFO] api.advisory: ICS Advisory: fetched 12971 rows from APIs and cached in memory
+2026-06-01 14:01:40,504 [INFO] api.advisory: ICS Advisory: synced 12971 records to SQLite (0 new)
+2026-06-01 14:01:40,534 [INFO] api.advisory: ICS Advisory: synced 12971 advisories to SQLite on startup
+2026-06-01 14:01:42,871 [INFO] api.advisory: ICS Advisory: initialization complete — queries will use SQLite cache
+2026-06-01 14:01:42,886 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:01:42,887 [INFO] engine.scheduler:   [+] onion_sync - every 30 min
+2026-06-01 14:01:42,888 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:01:42,889 [INFO] engine.scheduler:   [+] threatfox - every 900s
+2026-06-01 14:01:42,890 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:01:42,890 [INFO] engine.scheduler:   [+] urlhaus - every 900s
+2026-06-01 14:01:42,892 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:01:42,893 [INFO] engine.scheduler:   [+] feodo - every 1800s
+2026-06-01 14:01:42,893 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:01:42,895 [INFO] engine.scheduler:   [+] malwarebazaar - every 900s
+2026-06-01 14:01:42,897 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:01:42,898 [INFO] engine.scheduler:   [+] ransomware_live - every 600s
+2026-06-01 14:01:42,899 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:01:42,901 [INFO] engine.scheduler:   [+] ransomlook_market - every 600s
+2026-06-01 14:01:42,902 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:01:42,902 [INFO] engine.scheduler:   [+] haveibeenransom - every 600s
+2026-06-01 14:01:42,903 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:01:42,904 [INFO] engine.scheduler:   [+] circl_osint - every 1800s
+2026-06-01 14:01:42,906 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:01:42,907 [INFO] engine.scheduler:   [+] rss - every 1200s
+2026-06-01 14:01:42,908 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:01:42,909 [INFO] engine.scheduler:   [+] github_intel - every 3600s
+2026-06-01 14:01:42,913 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:01:42,914 [INFO] engine.scheduler:   [+] hibr - every 3600s
+2026-06-01 14:01:42,914 [INFO] engine.scheduler:   [-] falconfeeds - disabled
+2026-06-01 14:01:42,916 [INFO] engine.scheduler:   [-] hibp - disabled
+2026-06-01 14:01:42,917 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:01:42,918 [INFO] engine.scheduler:   [+] darkweb - every 3600s
+2026-06-01 14:01:42,919 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:01:42,920 [INFO] engine.scheduler:   [+] web_intel - every 300s (5 min)
+2026-06-01 14:01:42,922 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:01:42,923 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:01:42,924 [INFO] engine.scheduler:   [+] advisory_monitor - every 30 min
+2026-06-01 14:01:42,925 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:01:42,926 [INFO] engine.scheduler:   [+] ics_sync - every 60 min
+2026-06-01 14:01:42,928 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:01:42,929 [INFO] engine.scheduler:   [+] excel_export - every 3600s
+2026-06-01 14:01:42,930 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:01:42,931 [INFO] engine.scheduler:   [+] excel_ingestion - every 1800s
+2026-06-01 14:01:42,933 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:01:42,934 [INFO] engine.scheduler:   [+] onion_monitor - every 1800s
+2026-06-01 14:01:42,935 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:01:42,935 [INFO] engine.scheduler:   [+] social_monitor - every 60 min
+2026-06-01 14:01:42,936 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:01:42,938 [INFO] engine.scheduler:   [+] telegram_monitor - every 30 min (5 sources)
+2026-06-01 14:01:42,938 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:01:42,939 [INFO] engine.scheduler:   [+] ioc_validation - every 6 hours
+2026-06-01 14:01:42,942 [INFO] apscheduler.scheduler: Added job "Onion Discovery Sync" to job store "default"
+2026-06-01 14:01:42,942 [INFO] apscheduler.scheduler: Added job "Threatfox" to job store "default"
+2026-06-01 14:01:42,944 [INFO] apscheduler.scheduler: Added job "Urlhaus" to job store "default"
+2026-06-01 14:01:42,945 [INFO] apscheduler.scheduler: Added job "Feodo" to job store "default"
+2026-06-01 14:01:42,946 [INFO] apscheduler.scheduler: Added job "Malwarebazaar" to job store "default"
+2026-06-01 14:01:42,946 [INFO] apscheduler.scheduler: Added job "Ransomware Live" to job store "default"
+2026-06-01 14:01:42,948 [INFO] apscheduler.scheduler: Added job "Ransomlook Market" to job store "default"
+2026-06-01 14:01:42,949 [INFO] apscheduler.scheduler: Added job "Haveibeenransom" to job store "default"
+2026-06-01 14:01:42,949 [INFO] apscheduler.scheduler: Added job "Circl Osint" to job store "default"
+2026-06-01 14:01:42,950 [INFO] apscheduler.scheduler: Added job "Rss" to job store "default"
+2026-06-01 14:01:42,950 [INFO] apscheduler.scheduler: Added job "Github Intel" to job store "default"
+2026-06-01 14:01:42,951 [INFO] apscheduler.scheduler: Added job "Hibr" to job store "default"
+2026-06-01 14:01:42,952 [INFO] apscheduler.scheduler: Added job "Darkweb" to job store "default"
+2026-06-01 14:01:42,952 [INFO] apscheduler.scheduler: Added job "Web Intel Feed" to job store "default"
+2026-06-01 14:01:42,953 [INFO] apscheduler.scheduler: Added job "Feed Cleanup" to job store "default"
+2026-06-01 14:01:42,954 [INFO] apscheduler.scheduler: Added job "Advisory Monitor" to job store "default"
+2026-06-01 14:01:42,954 [INFO] apscheduler.scheduler: Added job "ICS Advisory SQLite Sync" to job store "default"
+2026-06-01 14:01:42,955 [INFO] apscheduler.scheduler: Added job "Excel Export Generation" to job store "default"
+2026-06-01 14:01:42,955 [INFO] apscheduler.scheduler: Added job "Excel OneDrive Ingestion" to job store "default"
+2026-06-01 14:01:42,956 [INFO] apscheduler.scheduler: Added job "Onion Status Monitor" to job store "default"
+2026-06-01 14:01:42,956 [INFO] apscheduler.scheduler: Added job "Social Media Threat Monitor" to job store "default"
+2026-06-01 14:01:42,957 [INFO] apscheduler.scheduler: Added job "Telegram Threat Channel Discovery" to job store "default"
+2026-06-01 14:01:42,958 [INFO] apscheduler.scheduler: Added job "Automated IOC Validation Sweep" to job store "default"
+2026-06-01 14:01:42,958 [INFO] apscheduler.scheduler: Scheduler started
+2026-06-01 14:01:42,959 [INFO] engine.scheduler: Scheduler started — 23 jobs
+2026-06-01 14:01:42,959 [INFO] main: Tor/Network settling (15s delay)...
+2026-06-01 14:01:57,965 [INFO] main: Running all feeds immediately...
+2026-06-01 14:01:57,995 [INFO] main: Dashboard  -> http://localhost:8003
+2026-06-01 14:01:57,996 [INFO] main: API Docs   -> http://localhost:8003/api/docs
+2026-06-01 14:01:57,996 [INFO] engine.scheduler: [RELOAD] Running all connectors + web intel...
+2026-06-01 14:01:58,025 [INFO] engine.scheduler: [RUN] ThreatFox (Abuse.ch)
+2026-06-01 14:01:58,025 [INFO] connector.threatfox: Running connector: ThreatFox (Abuse.ch)
+2026-06-01 14:01:58,026 [INFO] engine.scheduler: [RUN] URLHaus (Abuse.ch)
+2026-06-01 14:01:58,027 [INFO] connector.urlhaus: Running connector: URLHaus (Abuse.ch)
+2026-06-01 14:01:58,028 [INFO] engine.scheduler: [RUN] Feodo Tracker (Abuse.ch)
+2026-06-01 14:01:58,029 [INFO] connector.feodo: Running connector: Feodo Tracker (Abuse.ch)
+2026-06-01 14:01:58,030 [INFO] engine.scheduler: [RUN] MalwareBazaar (Abuse.ch)
+2026-06-01 14:01:58,030 [INFO] connector.malwarebazaar: Running connector: MalwareBazaar (Abuse.ch)
+2026-06-01 14:01:58,032 [INFO] engine.scheduler: [RUN] Ransomware.live
+2026-06-01 14:01:58,032 [INFO] connector.ransomware_live: Running connector: Ransomware.live
+2026-06-01 14:01:58,800 [INFO] engine.scheduler: [RUN] RansomWatch (GitHub Mirror)
+2026-06-01 14:01:58,830 [INFO] connector.haveibeenransom: Running connector: RansomWatch (GitHub Mirror)
+2026-06-01 14:01:58,831 [INFO] engine.scheduler: [RUN] CIRCL OSINT Feeds
+2026-06-01 14:01:58,831 [INFO] connector.circl_osint: Running connector: CIRCL OSINT Feeds
+2026-06-01 14:01:58,833 [INFO] engine.scheduler: [RUN] RansomLook Breach Market Monitor
+2026-06-01 14:01:58,833 [INFO] connector.ransomlook_market: Running connector: RansomLook Breach Market Monitor
+2026-06-01 14:01:58,834 [INFO] connector.web_intel: Running connector: Web Threat Intel (Live Feed)
+2026-06-01 14:01:58,836 [INFO] connector.social_monitor: [SocialMonitor] Fetching recent threat data from X (TweetFeed)...
+2026-06-01 14:01:58,917 [INFO] main: Shutting down...
+2026-06-01 14:01:58,919 [INFO] apscheduler.scheduler: Scheduler has been shut down
+2026-06-01 14:01:58,943 [WARNING] connector.ransomlook_market: Could not ensure breach_markets table: no active connection

@@ -33,6 +33,48 @@ async def refresh_telegram():
     asyncio.create_task(conn.run())
     return {"status": "triggered", "message": "Telegram monitoring cycle started in background"}
 
+from pydantic import BaseModel
+
+class AddChannelRequest(BaseModel):
+    handle: str
+
+@router.post("/channel")
+async def add_channel(payload: AddChannelRequest):
+    """Manually add a Telegram channel to monitor."""
+    if not _db:
+        raise HTTPException(500, "Database not initialized")
+    
+    handle = payload.handle.lstrip("@").strip().lower()
+    if not handle:
+        raise HTTPException(400, "Invalid channel handle")
+        
+    inserted, is_new = await _db.upsert_telegram_channel({
+        "handle": handle,
+        "category": "general"
+    })
+    
+    if is_new:
+        conn = TelegramMonitorConnector(_db)
+        async def check_single():
+            metadata = await conn._check_handle_metadata(handle)
+            if metadata["status"] == "active":
+                category = conn._categorize(metadata["name"] + " " + metadata["description"])
+                await _db.upsert_telegram_channel({
+                    "handle": handle,
+                    "name": metadata["name"],
+                    "description": metadata["description"],
+                    "subscriber_count": metadata["subscribers"],
+                    "category": category
+                })
+                await _db.update_telegram_status(inserted, "200", metadata["subscribers"])
+            else:
+                await _db.update_telegram_status(inserted, metadata["status"], 0)
+        asyncio.create_task(check_single())
+        
+        return {"status": "added", "message": f"Channel @{handle} added and status check scheduled."}
+    else:
+        return {"status": "exists", "message": f"Channel @{handle} is already in the database."}
+
 @router.get("/stats")
 async def get_stats():
     if not _db:

@@ -1,5 +1,5 @@
 """
-engine/ai_engine.py — CyberXTron AI Engine v2.4
+engine/ai_engine.py — ThreatIntel AI Engine v2.4
 FIXED:
 - AI only runs when user explicitly clicks Analyze/chat
 - Sources are NEVER fabricated — only cites what was actually provided
@@ -17,14 +17,14 @@ from config import settings
 
 logger = logging.getLogger("engine.ai")
 
-SYSTEM_PROMPT = """You are a Senior Cyber Threat Intelligence (CTI) Analyst and Report Editor working in an enterprise Security Operations Center (SOC). Your mission is to validate, enrich, and produce visually stunning, professional CTI reports using both external OSINT and internal intelligence from the CyberXtron TIP Console.
+SYSTEM_PROMPT = """You are a Senior Cyber Threat Intelligence (CTI) Analyst and Report Editor working in an enterprise Security Operations Center (SOC). Your mission is to validate, enrich, and produce visually stunning, professional CTI reports using both external OSINT and internal intelligence from the ThreatIntel TIP Console.
 
 ## 🔴 MANDATORY DATA SOURCES
 1. **External OSINT:** SANS ISC, CISA, MITRE ATT&CK, Vendor Intel (Microsoft, Palo Alto, CrowdStrike, Proofpoint, etc.), and reputable security research.
-2. **Internal Intelligence:** CyberXtron TIP Console (Treat as HIGH-CONFIDENCE internal intelligence).
+2. **Internal Intelligence:** ThreatIntel TIP Console (Treat as HIGH-CONFIDENCE internal intelligence).
 
 ## 🔴 SOURCE HANDLING & VALIDATION RULES
-* **DISTINGUISH SOURCES:** Clearly label "Source: CyberXtron TIP" for internal data and "Source: [External Name]" for external data.
+* **DISTINGUISH SOURCES:** Clearly label "Source: ThreatIntel TIP" for internal data and "Source: [External Name]" for external data.
 * **CONFIDENCE SCORING:** 
     - **High Confidence:** Confirmed by BOTH internal and external sources.
     - **Medium Confidence:** Confirmed by only ONE source category.
@@ -54,14 +54,14 @@ SYSTEM_PROMPT = """You are a Senior Cyber Threat Intelligence (CTI) Analyst and 
 8. **Impact Assessment**
 9. **Mitigation & Recommendations** (Max 5 concise points)
 10. **Confidence Assessment** (High/Medium/Low with justification on a separate line)
-11. **References** (Internal CyberXtron TIP entries and External URLs)
+11. **References** (Internal ThreatIntel TIP entries and External URLs)
 
 ## 🔴 WRITING RULES
 * Use professional, CISO-level language. No casual phrasing or unnecessary jargon.
 * Avoid exaggeration. No "confirmed breach" unless validated.
 * Keep concise. If data is missing, explain the limitation instead of leaving it empty."""
 
-WEB_CONTEXT_HEADER = """## Intelligence Context from CyberXTron Platform
+WEB_CONTEXT_HEADER = """## Intelligence Context from ThreatIntel Platform
 
 The following was retrieved from the platform's live feeds and advisory monitor:
 
@@ -74,14 +74,14 @@ Now answer the following:
 AGENT_SYSTEM_PROMPT = SYSTEM_PROMPT + """
 
 ## 🔴 AGENTIC TOOL-USE RULES
-You have access to tools to query the CyberXTron database and the live web.
+You have access to tools to query the ThreatIntel database and the live web.
 Use tools when:
 - You need specific details about an IOC, actor, or ransomware group.
 - You need to correlate internal data with external web intelligence.
 - You want to verify the accuracy of a claim using multiple sources.
 
 ## 🔴 CORRELATION & ACCURACY (CRITICAL)
-- **CORRELATE ALWAYS:** Compare internal CyberXtron TIP data with external web content.
+- **CORRELATE ALWAYS:** Compare internal ThreatIntel TIP data with external web content.
 - **ACCURACY OVER SPEED:** If data is conflicting, highlight the discrepancy and assign a lower confidence score.
 - **LIVE WEB:** Use `fetch_web_content` to get the latest details from URLs provided or found during analysis.
 
@@ -91,7 +91,7 @@ Always explain your reasoning before using a tool. After getting results, provid
 
 class AIEngine:
     def __init__(self, db=None):
-        self.provider = settings.AI_PROVIDER
+        self.provider = str(getattr(settings, "AI_PROVIDER", "ollama") or "ollama").lower().strip()
         self.client   = httpx.AsyncClient(timeout=90.0)
         self._db      = db
         logger.info("AI Engine initialized — provider: %s", self.provider)
@@ -129,11 +129,11 @@ class AIEngine:
         sources = ioc.get("sources", [])
         if isinstance(sources, str):
             try: sources = json.loads(sources)
-            except: sources = []
+            except Exception: sources = []
         tags = ioc.get("tags", [])
         if isinstance(tags, str):
             try: tags = json.loads(tags)
-            except: tags = []
+            except Exception: tags = []
 
         search_topic = ioc.get("malware","") or ioc.get("threat_actor","") or ioc.get("ioc","")
         ctx = await self._get_context(search_topic)
@@ -186,7 +186,7 @@ class AIEngine:
 - [Confidence level with technical justification]
 
 11. References
-- Source: CyberXtron TIP — tracked with {ioc.get('source_count',1)} source(s)
+- Source: ThreatIntel TIP — tracked with {ioc.get('source_count',1)} source(s)
 - Source: MITRE ATT&CK
 - Source: Training Knowledge / Vendor research"""
 
@@ -257,7 +257,7 @@ class AIEngine:
 - [Confidence level with technical justification]
 
 11. References
-- Source: CyberXtron TIP — {len(iocs)} IOCs, {len(victims)} victims tracked
+- Source: ThreatIntel TIP — {len(iocs)} IOCs, {len(victims)} victims tracked
 - Source: MITRE ATT&CK
 - Source: Training Knowledge / OSINT"""
 
@@ -291,7 +291,7 @@ class AIEngine:
 4. Key Findings / Activity Overview
 - **RaaS Model:** [Confirmed/Suspected]
 - **Leak Site Status:** [Active/Offline]
-- **Victim Count:** {len(victims)} tracked in CyberXtron TIP
+- **Victim Count:** {len(victims)} tracked in ThreatIntel TIP
 
 5. Technical Analysis
 - [Encryption algorithm and behavior]
@@ -321,7 +321,7 @@ class AIEngine:
 - [Confidence level with technical justification]
 
 11. References
-- Source: CyberXtron TIP — {len(victims)} victims tracked
+- Source: ThreatIntel TIP — {len(victims)} victims tracked
 - Source: MITRE ATT&CK
 - Source: Training Knowledge / OSINT"""
 
@@ -377,7 +377,7 @@ class AIEngine:
 - [Confidence level with technical justification]
 
 11. References
-- Source: CyberXtron Dark Web Monitor — {leak.get('source_url','[.onion site]')}
+- Source: ThreatIntel Dark Web Monitor — {leak.get('source_url','[.onion site]')}
 - Source: Training Knowledge / Ransomware group profile"""
 
         return await self._complete(self._with_context(prompt, ctx), max_tokens=2000)
@@ -388,7 +388,7 @@ class AIEngine:
 
         prompt = f"""Generate a professional Cyber Threat Intelligence Advisory based on recent platform activity.
 
-1. Title: {threat_data.get('title','CyberXTron Threat Advisory')}
+1. Title: {threat_data.get('title','ThreatIntel Threat Advisory')}
 
 2. Executive Summary
 - **Period:** {threat_data.get('period','Recent')}
@@ -437,7 +437,7 @@ class AIEngine:
 - [Confidence level with technical justification]
 
 11. References
-- Source: CyberXtron TIP — {threat_data.get('total_iocs',0)} IOCs, {threat_data.get('new_victims',0)} new victims
+- Source: ThreatIntel TIP — {threat_data.get('total_iocs',0)} IOCs, {threat_data.get('new_victims',0)} new victims
 - Source: MITRE ATT&CK
 - Source: Training Knowledge / OSINT"""
 
@@ -486,8 +486,15 @@ class AIEngine:
 
         # Ollama
         try:
-            resp = await self.client.get(f"{settings.OLLAMA_BASE_URL}/api/tags", timeout=3.0)
-            results["ollama"] = {"status": "ok" if resp.status_code == 200 else "error", "code": resp.status_code}
+            headers = {"Content-Type": "application/json"}
+            api_key = str(getattr(settings, "OLLAMA_API_KEY", "") or "").strip()
+            if api_key:
+                headers["Authorization"] = f"Bearer {api_key}"
+            resp = await self.client.get(f"{settings.OLLAMA_BASE_URL}/api/tags", headers=headers, timeout=5.0)
+            if resp.status_code == 401:
+                results["ollama"] = {"status": "error", "code": 401, "error": "Unauthorized — invalid or expired Ollama cloud API key"}
+            else:
+                results["ollama"] = {"status": "ok" if resp.status_code == 200 else "error", "code": resp.status_code}
         except Exception as e:
             results["ollama"] = {"status": "error", "error": str(e)}
 
@@ -501,7 +508,7 @@ class AIEngine:
     # ── Provider implementations ──────────────────────────────────────────────
 
     async def _complete(self, prompt: str, max_tokens: int = 2000) -> str:
-        """Complete a prompt. Respects user-selected provider first, then cascades."""
+        """Complete a prompt. Respects the currently selected provider first, then cascades."""
         candidates = []
 
         # Build list of configured providers
@@ -521,12 +528,12 @@ class AIEngine:
                 seen.add(p)
                 unique.append(p)
 
-        # ── Honour user-selected provider (move it to front) ──────────────────
-        user_pref = getattr(settings, "AI_PROVIDER", "").strip().lower()
+        # Prefer the live selected provider, even if other providers are configured.
+        user_pref = str(getattr(settings, "AI_PROVIDER", "") or "").strip().lower() or self.provider
         if user_pref and user_pref in unique and unique[0] != user_pref:
             unique.remove(user_pref)
             unique.insert(0, user_pref)
-        # ──────────────────────────────────────────────────────────────────────
+        self.provider = user_pref or self.provider
 
         errors = []
         for provider in unique:
@@ -551,24 +558,68 @@ class AIEngine:
         return f"{error_msg}\n\nCheck your API keys and restart."
 
     async def _complete_with_tools(self, messages: List[Dict], tools: List[Dict]) -> Any:
-        """Complete a chat with native tool support (OpenRouter/Groq)."""
-        provider = self.provider
-        if provider not in ["openrouter", "groq"]:
-            provider = "openrouter" # Default to OpenRouter for tool calling if primary doesn't support it
+        """Complete a chat with native tool support and reliable provider fallback."""
+        candidates = []
+        for provider in ["openrouter", "groq", "anthropic", "ollama"]:
+            if provider == "ollama":
+                candidates.append(provider)
+                continue
+            key_name = f"{provider.upper()}_API_KEY"
+            if getattr(settings, key_name, ""):
+                candidates.append(provider)
 
-        try:
-            if provider == "openrouter":
-                return await self._openrouter_tools(messages, tools)
-            elif provider == "groq":
-                return await self._groq_tools(messages, tools)
-        except Exception as e:
-            logger.error("Tool call error [%s]: %s", provider, e)
-            return f"Error during tool calling with {provider}: {str(e)}"
-        
-        return "Selected provider does not support native tools."
+        # Deduplicate and prioritize user-selected provider first
+        unique = []
+        for provider in candidates:
+            if provider not in unique:
+                unique.append(provider)
+
+        user_pref = str(getattr(settings, "AI_PROVIDER", "") or "").strip().lower() or self.provider
+        if user_pref in unique and unique[0] != user_pref:
+            unique.remove(user_pref)
+            unique.insert(0, user_pref)
+
+        if not unique:
+            return "No providers configured that support native tools."
+
+        errors = []
+        for provider in unique:
+            try:
+                result = None
+                if provider == "openrouter":
+                    result = await self._openrouter_tools(messages, tools)
+                elif provider == "groq":
+                    result = await self._groq_tools(messages, tools)
+                elif provider == "anthropic":
+                    result = await self._anthropic_tools(messages, tools)
+                elif provider == "ollama":
+                    result = await self._ollama_tools(messages, tools)
+
+                if isinstance(result, str) and (
+                    result.startswith("OpenRouter API error") or
+                    result.startswith("Groq API error") or
+                    result.startswith("Anthropic API error") or
+                    result.startswith("Ollama API error") or
+                    result == "No providers configured that support native tools." or
+                    result.startswith("OpenRouter not configured") or
+                    result.startswith("Groq not configured") or
+                    result.startswith("Anthropic not configured") or
+                    result.startswith("Ollama not configured")
+                ):
+                    raise RuntimeError(result)
+
+                if result is not None:
+                    return result
+            except Exception as e:
+                logger.error("Tool call error [%s]: %s", provider, e)
+                errors.append(f" - {provider.upper()}: {str(e)[:120]}")
+
+        error_msg = "[!] Tool Calling Error: All fallback attempts failed\n" + "\n".join(errors)
+        return error_msg
 
     async def _openrouter_tools(self, messages: List[Dict], tools: List[Dict]) -> Any:
-        if not settings.OPENROUTER_API_KEY: return "OpenRouter not configured."
+        if not settings.OPENROUTER_API_KEY:
+            raise RuntimeError("OpenRouter not configured")
         headers = {
             "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
             "HTTP-Referer": settings.OPENROUTER_HTTP_REFERER,
@@ -588,15 +639,15 @@ class AIEngine:
         if resp.status_code != 200:
             err = resp.text
             try: err = resp.json().get('error',{}).get('message', err)
-            except: pass
-            logger.error(f"OpenRouter API error ({resp.status_code}): {err}")
-            return f"OpenRouter API error ({resp.status_code}): {err}"
+            except Exception: pass
+            logger.error("OpenRouter API error (%s): %s", resp.status_code, err)
+            raise RuntimeError(f"OpenRouter API error ({resp.status_code}): {err}")
 
         data = resp.json()
         if "choices" not in data or not data["choices"]:
             err_info = data.get("error", "Unknown error")
-            logger.error(f"OpenRouter response missing 'choices': {data}")
-            return f"OpenRouter returned no choices. Error: {err_info}"
+            logger.error("OpenRouter response missing 'choices': %s", data)
+            raise RuntimeError(f"OpenRouter returned no choices. Error: {err_info}")
 
         choice = data["choices"][0]["message"]
         if "tool_calls" in choice:
@@ -604,7 +655,8 @@ class AIEngine:
         return choice["content"]
 
     async def _groq_tools(self, messages: List[Dict], tools: List[Dict]) -> Any:
-        if not settings.GROQ_API_KEY: return "Groq not configured."
+        if not settings.GROQ_API_KEY:
+            raise RuntimeError("Groq not configured")
         resp = await self.client.post(
             "https://api.groq.com/openai/v1/chat/completions",
             headers={"Authorization": f"Bearer {settings.GROQ_API_KEY}"},
@@ -615,12 +667,39 @@ class AIEngine:
                 "tool_choice": "auto"
             },
         )
-        resp.raise_for_status()
+        if resp.status_code != 200:
+            err = resp.text
+            raise RuntimeError(f"Groq API error ({resp.status_code}): {err}")
         data = resp.json()
         choice = data["choices"][0]["message"]
         if "tool_calls" in choice:
             return choice["tool_calls"]
         return choice["content"]
+
+    async def _anthropic_tools(self, messages: List[Dict], tools: List[Dict]) -> Any:
+        if not settings.ANTHROPIC_API_KEY:
+            raise RuntimeError("Anthropic not configured")
+        raise RuntimeError("Anthropic tool-calling is not enabled for this runtime; using fallback providers.")
+
+    async def _ollama_tools(self, messages: List[Dict], tools: List[Dict]) -> Any:
+        """Ollama supports tool calling via the OpenAI-compatible chat endpoint when configured."""
+        base_url = settings.OLLAMA_BASE_URL.rstrip("/")
+        payload = {
+            "model": settings.OLLAMA_MODEL,
+            "messages": messages,
+            "tools": tools,
+            "tool_choice": "auto",
+            "stream": False,
+        }
+        resp = await self.client.post(f"{base_url}/api/chat", json=payload, timeout=180.0)
+        if resp.status_code != 200:
+            err = resp.text
+            raise RuntimeError(f"Ollama API error ({resp.status_code}): {err}")
+        data = resp.json()
+        message = data.get("message", {})
+        if "tool_calls" in message:
+            return message["tool_calls"]
+        return message.get("content", "")
 
     async def _groq(self, prompt: str, max_tokens: int) -> str:
         if not settings.GROQ_API_KEY: return self._not_configured()
@@ -639,26 +718,48 @@ class AIEngine:
         return resp.json()["choices"][0]["message"]["content"]
 
     async def _ollama(self, prompt: str, max_tokens: int) -> str:
+        def _do_request(base_url: str, api_key: str, use_chat_endpoint: bool = True):
+            headers = {"Content-Type": "application/json"}
+            if api_key:
+                headers["Authorization"] = f"Bearer {api_key}"
+            url = f"{base_url.rstrip('/')}/api/chat" if use_chat_endpoint else f"{base_url.rstrip('/')}/v1/chat/completions"
+            payload = {
+                "model": settings.OLLAMA_MODEL,
+                "messages": [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": prompt}],
+                "stream": False,
+                "options": {"num_predict": max_tokens, "temperature": 0.15},
+            }
+            if not use_chat_endpoint:
+                payload = {
+                    "model": settings.OLLAMA_MODEL,
+                    "messages": [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": prompt}],
+                    "max_tokens": max_tokens,
+                    "temperature": 0.15,
+                }
+            return self.client.post(url, headers=headers, json=payload, timeout=180.0)
+
         base_url = settings.OLLAMA_BASE_URL.rstrip("/")
-        api_key  = getattr(settings, "OLLAMA_API_KEY", "").strip()
+        api_key  = str(getattr(settings, "OLLAMA_API_KEY", "") or "").strip()
 
-        headers = {"Content-Type": "application/json"}
-        if api_key:
-            headers["Authorization"] = f"Bearer {api_key}"
-
-        # Both local and cloud Ollama support the native /api/chat endpoint
-        # Cloud API specifically requires /api/chat (the /v1/ OpenAI-compatible one may not be exposed)
-        url = f"{base_url}/api/chat"
-        payload = {
-            "model":   settings.OLLAMA_MODEL,
-            "messages": [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": prompt}],
-            "stream":  False,
-            "options": {"num_predict": max_tokens, "temperature": 0.15},
-        }
-
-        resp = await self.client.post(url, headers=headers, json=payload, timeout=180.0)
-        resp.raise_for_status()
-        return resp.json()["message"]["content"]
+        try:
+            resp = await _do_request(base_url, api_key, use_chat_endpoint=True)
+            if resp.status_code == 401 and api_key:
+                local_base = "http://localhost:11434"
+                if base_url != local_base:
+                    logger.warning("Ollama cloud auth failed (401); retrying with local Ollama at %s", local_base)
+                    resp = await _do_request(local_base, "", use_chat_endpoint=True)
+            resp.raise_for_status()
+            if resp.headers.get("content-type", "").startswith("application/json"):
+                data = resp.json()
+                if "message" in data:
+                    return data["message"]["content"]
+                if "choices" in data and data["choices"]:
+                    return data["choices"][0]["message"]["content"]
+            raise ValueError("Unexpected Ollama response format")
+        except Exception as exc:
+            if "401" in str(exc) or "Unauthorized" in str(exc):
+                raise RuntimeError("Ollama authentication failed. Check OLLAMA_API_KEY or switch to a valid local Ollama instance.") from exc
+            raise
 
 
     async def _openrouter(self, prompt: str, max_tokens: int) -> str:
@@ -706,7 +807,7 @@ Restart: `python main.py`"""
 
 
 class ModularAgent:
-    """A modular agent that can use tools to interact with the CyberXTron platform."""
+    """A modular agent that can use tools to interact with the ThreatIntel platform."""
     def __init__(self, db, ai_engine: AIEngine):
         self.db = db
         self.ai = ai_engine
@@ -880,7 +981,7 @@ class ModularAgent:
         try:
             logger.info(f"Agent fetching web content: {url}")
             async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
-                resp = await client.get(url, headers={"User-Agent": "CyberXTron-CTI-Agent/2.4"})
+                resp = await client.get(url, headers={"User-Agent": "ThreatIntel-CTI-Agent/2.4"})
                 resp.raise_for_status()
                 # Basic text extraction from HTML
                 from bs4 import BeautifulSoup

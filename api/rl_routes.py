@@ -11,6 +11,13 @@ _db = None
 _ai = None
 _rl = None
 
+import time
+
+# Cache variables to prevent blocking external fetches
+_groups_detailed_cache = None
+_groups_detailed_cache_ts = 0
+_rl_group_data_cache = {}  # {group_name: (rl_group_data, timestamp)}
+
 def get_db():  return _db
 def get_ai():  return _ai
 def get_rl():  return _rl
@@ -55,7 +62,7 @@ async def list_groups():
             timeout=timeout,
             connector=aiohttp.TCPConnector(ssl=ssl_ctx)
         ) as sess:
-            async with sess.get(url, headers={"User-Agent":"CyberXTron-TIP/2.2"}) as resp:
+            async with sess.get(url, headers={"User-Agent":"ThreatIntel-TIP/2.2"}) as resp:
                 if resp.status == 200:
                     groups = await resp.json(content_type=None)
                     return {"groups": groups if isinstance(groups, list) else [], "count": len(groups) if isinstance(groups, list) else 0}
@@ -174,9 +181,14 @@ async def get_cyberattacks():
         raise HTTPException(504, f"Ransomware.live API unavailable: {e}")
 
 
-@rl_router.get("/groups/detailed")
-async def list_groups_detailed():
-    """Return all groups with full metadata: TTPs, tools, locations (IOCs)."""
+async def _refresh_groups_detailed_bg():
+    try:
+        await _fetch_groups_detailed_sync()
+    except Exception as e:
+        logger.warning(f"Background groups refresh failed: {e}")
+
+async def _fetch_groups_detailed_sync():
+    global _groups_detailed_cache, _groups_detailed_cache_ts
     import aiohttp, ssl
     try:
         import certifi
@@ -184,7 +196,6 @@ async def list_groups_detailed():
     except Exception:
         ssl_ctx = False
 
-    # Ransomware.live public API (no key needed for group list with TTPs)
     url = "https://api.ransomware.live/v2/groups"
     try:
         timeout = aiohttp.ClientTimeout(total=20)
@@ -192,14 +203,14 @@ async def list_groups_detailed():
             timeout=timeout,
             connector=aiohttp.TCPConnector(ssl=ssl_ctx)
         ) as sess:
-            async with sess.get(url, headers={"User-Agent": "CyberXTron-TIP/2.4"}) as resp:
+            async with sess.get(url, headers={"User-Agent": "ThreatIntel-TIP/2.4"}) as resp:
                 if resp.status == 200:
                     groups = await resp.json(content_type=None)
                     if isinstance(groups, list):
                         # Merge with RansomWatch groups
                         try:
                             rw_url = "https://raw.githubusercontent.com/joshhighet/ransomwatch/main/groups.json"
-                            async with sess.get(rw_url, headers={"User-Agent": "CyberXTron-TIP/2.4"}) as rw_resp:
+                            async with sess.get(rw_url, headers={"User-Agent": "ThreatIntel-TIP/2.4"}) as rw_resp:
                                 if rw_resp.status == 200:
                                     rw_groups = await rw_resp.json(content_type=None)
                                     if isinstance(rw_groups, list):
@@ -245,7 +256,6 @@ async def list_groups_detailed():
                             logger.error("Error merging local groups: %s", e)
 
                         # Attach local evidence counters and filter out empty/no-evidence groups.
-                        # This avoids showing actors that exist by name only but have no usable data.
                         filtered = []
                         for g in groups:
                             name = (g.get("name") or "").strip()
@@ -259,27 +269,45 @@ async def list_groups_detailed():
                             g["ioc_count"] = icnt
                             g["has_local_data"] = (vcnt + icnt) > 0
 
-                            # UI should prioritize groups that have actual local intelligence.
                             if g["has_local_data"] or len(locs) > 0:
                                 filtered.append(g)
 
                         # Sort groups alphabetically
                         filtered.sort(key=lambda x: x.get("name", "").lower())
-                        return {"groups": filtered, "count": len(filtered), "source": "ransomware.live + local + rw"}
+                        result = {"groups": filtered, "count": len(filtered), "source": "ransomware.live + local + rw"}
+                        _groups_detailed_cache = result
+                        _groups_detailed_cache_ts = time.time()
+                        return result
     except Exception as e:
-        import traceback
-        logger.warning("ransomware.live detailed groups: %s", e)
-        traceback.print_exc()
+        logger.warning("ransomware.live detailed groups fetch failed: %s", e)
 
+    if _groups_detailed_cache:
+        return _groups_detailed_cache
     return {"groups": [], "count": 0, "source": "none"}
 
+@rl_router.get("/groups/detailed")
+async def list_groups_detailed():
+    """Return all groups with full metadata: TTPs, tools, locations (IOCs)."""
+    global _groups_detailed_cache, _groups_detailed_cache_ts
+    
+    now_ts = time.time()
+    # Cache lifetime: 10 minutes (600 seconds)
+    if _groups_detailed_cache and (now_ts - _groups_detailed_cache_ts < 600):
+        return _groups_detailed_cache
 
-@rl_router.get("/group/{group_name}/iocs")
-async def get_group_iocs(group_name: str):
-    """
-    Per-group IOC view: network IOCs (onion/clearweb sites from RL),
-    known tools, MITRE TTPs, and recent victims from local DB.
-    """
+    # If we have an expired cached copy, refresh in background but serve immediately
+    if _groups_detailed_cache:
+        import asyncio
+        asyncio.create_task(_refresh_groups_detailed_bg())
+        return _groups_detailed_cache
+
+    # Synchronous fallback if no cache exists
+    return await _fetch_groups_detailed_sync()
+
+
+async def _fetch_group_data_sync(group_name: str):
+    global _rl_group_data_cache
+    g_lower = group_name.lower().strip()
     import aiohttp, ssl
     try:
         import certifi
@@ -289,21 +317,21 @@ async def get_group_iocs(group_name: str):
 
     rl_group_data = None
     # Try ransomware.live API for this specific group
-    url = f"https://api.ransomware.live/v2/group/{group_name.lower()}"
+    url = f"https://api.ransomware.live/v2/group/{g_lower}"
     try:
         timeout = aiohttp.ClientTimeout(total=12)
         async with aiohttp.ClientSession(
             timeout=timeout,
             connector=aiohttp.TCPConnector(ssl=ssl_ctx)
         ) as sess:
-            async with sess.get(url, headers={"User-Agent": "CyberXTron-TIP/2.4"}) as resp:
+            async with sess.get(url, headers={"User-Agent": "ThreatIntel-TIP/2.4"}) as resp:
                 if resp.status == 200:
                     raw = await resp.json(content_type=None)
                     # API returns a list; pick the matching group
                     if isinstance(raw, list):
                         for g in raw:
-                            if (g.get("name", "").lower() == group_name.lower() or
-                                    g.get("altname", "").lower() == group_name.lower()):
+                            if (g.get("name", "").lower() == g_lower or
+                                    g.get("altname", "").lower() == g_lower):
                                 rl_group_data = g
                                 break
                         if not rl_group_data and raw:
@@ -322,17 +350,51 @@ async def get_group_iocs(group_name: str):
                 timeout=timeout,
                 connector=aiohttp.TCPConnector(ssl=ssl_ctx)
             ) as sess:
-                async with sess.get(url_all, headers={"User-Agent": "CyberXTron-TIP/2.4"}) as resp:
+                async with sess.get(url_all, headers={"User-Agent": "ThreatIntel-TIP/2.4"}) as resp:
                     if resp.status == 200:
                         groups = await resp.json(content_type=None)
                         if isinstance(groups, list):
                             for g in groups:
-                                if (g.get("name", "").lower() == group_name.lower() or
-                                        (g.get("altname") or "").lower() == group_name.lower()):
+                                if (g.get("name", "").lower() == g_lower or
+                                        (g.get("altname") or "").lower() == g_lower):
                                     rl_group_data = g
                                     break
         except Exception as e:
             logger.debug("RL group search fallback: %s", e)
+
+    if rl_group_data:
+        _rl_group_data_cache[g_lower] = (rl_group_data, time.time())
+    return rl_group_data
+
+
+@rl_router.get("/group/{group_name}/iocs")
+async def get_group_iocs(group_name: str):
+    """
+    Per-group IOC view: network IOCs (onion/clearweb sites from RL),
+    known tools, MITRE TTPs, and recent victims from local DB.
+    """
+    g_lower = group_name.lower().strip()
+    rl_group_data = None
+    
+    now_ts = time.time()
+    # Check cache first
+    if g_lower in _rl_group_data_cache:
+        cached_val, cached_ts = _rl_group_data_cache[g_lower]
+        if now_ts - cached_ts < 900:  # 15 minutes
+            rl_group_data = cached_val
+        else:
+            # Expired, start background task to refresh
+            async def _bg_fetch_group_data(g_name):
+                try:
+                    await _fetch_group_data_sync(g_name)
+                except Exception:
+                    pass
+            import asyncio
+            asyncio.create_task(_bg_fetch_group_data(group_name))
+            rl_group_data = cached_val
+
+    if not rl_group_data:
+        rl_group_data = await _fetch_group_data_sync(group_name)
 
     # Build structured IOC response
     network_iocs = []

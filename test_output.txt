@@ -1,5 +1,5 @@
 ﻿============================================================
-  CyberXTron ù .onion Scraping Capability Test
+  ThreatIntel ù .onion Scraping Capability Test
   Tor Proxy: 127.0.0.1:9150
 ============================================================
 

@@ -26,3 +26,11 @@ logs/
 .env
 .env.local
 .vercel
+
+# DB Migration
+migrate_sqlite_to_supabase.py
+
+# Large Data Files
+*.zip
+cvelistV5.zip
+cvelistV5/

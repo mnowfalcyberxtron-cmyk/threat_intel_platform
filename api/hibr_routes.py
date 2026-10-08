@@ -6,6 +6,7 @@ All results stored locally. No external redirects in the UI.
 """
 
 import json
+import asyncio
 import logging
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
@@ -148,82 +149,92 @@ async def fullstealer_search(
 
 # ── Combined investigation ──────────────────────────────────────────────────────
 
-@hibr_router.get("/investigate/domain/{domain}")
-async def investigate_domain(domain: str):
-    """
-    Full domain investigation: metadata + fulldata + fullstealer + AI analysis.
-    One endpoint for complete breach picture of a target domain.
-    
-    Example: GET /api/hibr/investigate/domain/targetcorp.com
-    """
+async def _run_investigation(target: str, target_type: str, refresh: bool) -> dict:
+    db = get_db()
+
+    # 1. Check Cache — serve immediately if cached and not forcing refresh
+    old_data = None
+    if db:
+        old_data = await db.get_hibr_search(target, target_type)
+        if old_data and not refresh:
+            logger.info("HIBR cache hit for %s (%s)", target, target_type)
+            return old_data
+
+    # 2. Run API Investigation with a global timeout to prevent infinite hang
     hibr = get_hibr()
+    from engine.hibr_search import HIBRSecuritySearchEngine
+    engine = HIBRSecuritySearchEngine(hibr, max_depth=2, request_budget=30, concurrency=3)
+    try:
+        results = await asyncio.wait_for(engine.run(target, target_type), timeout=120.0)
+    except asyncio.TimeoutError:
+        logger.warning("HIBR investigation timed out after 120s — returning partial results")
+        # Build partial results from whatever was collected so far
+        from engine.hibr_search import HIBRSecuritySearchEngine
+        results = {
+            "start_entity": {"value": target, "type": target_type},
+            "stats": {
+                "depth_reached": 0,
+                "api_calls_made": engine.requests_made,
+                "entities_discovered": len(engine.visited_entities),
+                "metadata_count": len(engine.all_metadata),
+                "fulldata_count": len(engine.all_fulldata),
+                "fullstealer_count": len(engine.all_fullstealer),
+                "partial": True,
+            },
+            "metadata":    engine.deduplicate_metadata(engine.all_metadata),
+            "fulldata":    engine.deduplicate_fulldata(engine.all_fulldata),
+            "fullstealer": engine.deduplicate_fullstealer(engine.all_fullstealer),
+            "graph": {"nodes": list(engine.nodes.values()), "edges": engine.edges},
+            "timeline": {"json": {}, "ascii": "[timed out — partial results]"},
+        }
+
+    # 3. Diff old vs new records
+    if old_data:
+        old_meta  = {str(r.get("id", "")): r for r in old_data.get("metadata", [])}
+        old_full  = {f"{(r.get('full_data') or r).get('email','')}{(r.get('full_data') or r).get('domain','')}{(r.get('full_data') or r).get('id_source','')}": r
+                     for r in old_data.get("fulldata", [])}
+        old_steal = {str(hash(json.dumps({k: v for k, v in r.items() if k != "is_new"}, sort_keys=True))): r
+                     for r in old_data.get("fullstealer", [])}
+
+        for r in results.get("metadata", []):
+            if str(r.get("id", "")) not in old_meta:
+                r["is_new"] = True
+
+        for r in results.get("fulldata", []):
+            fd = r.get("full_data") or r
+            k  = f"{fd.get('email','')}{fd.get('domain','')}{fd.get('id_source','')}"
+            if k not in old_full:
+                r["is_new"] = True
+
+        for r in results.get("fullstealer", []):
+            k = str(hash(json.dumps({kk: v for kk, v in r.items() if kk != "is_new"}, sort_keys=True)))
+            if k not in old_steal:
+                r["is_new"] = True
+
+    # 4. Save to DB
+    if db:
+        await db.save_hibr_search(target, target_type, json.dumps(results))
+        results["_cached_at"] = None  # Just ran
+
+    return results
+
+@hibr_router.get("/investigate/domain/{domain}")
+async def investigate_domain(domain: str, refresh: bool = False):
+    """
+    Full domain investigation: metadata + fulldata + fullstealer + recursive entity expansion.
+    """
     if not _check():
         raise HTTPException(503, detail=_config_help())
-
-    # Run all three searches concurrently
-    import asyncio
-    meta_task     = hibr.search_metadata("domain", domain)
-    fulldata_task = hibr.search_fulldata("domain", domain)
-    stealer_task  = hibr.search_fullstealer("domain", domain)
-
-    meta, fulldata, stealer = await asyncio.gather(
-        meta_task, fulldata_task, stealer_task, return_exceptions=True
-    )
-
-    # Handle exceptions gracefully
-    if isinstance(meta, Exception):     meta = None
-    if isinstance(fulldata, Exception): fulldata = None
-    if isinstance(stealer, Exception):  stealer = None
-
-    return {
-        "domain": domain,
-        "metadata": meta,
-        "fulldata_summary": {
-            "total_hits": (fulldata or {}).get("total_hits", 0),
-            "sample": (fulldata or {}).get("data", [])[:5],
-            "has_more": (fulldata or {}).get("has_next_page", False),
-        },
-        "stealer_summary": {
-            "total_hits": (stealer or {}).get("total_hits", 0),
-            "sample": (stealer or {}).get("data", [])[:5],
-            "has_more": (stealer or {}).get("has_next_page", False),
-        },
-        "ai_analysis": None,
-    }
-
+    return await _run_investigation(domain, "domain", refresh)
 
 @hibr_router.get("/investigate/email/{email}")
-async def investigate_email(email: str):
+async def investigate_email(email: str, refresh: bool = False):
     """
-    Full email investigation: fulldata + fullstealer + AI analysis.
-    
-    Example: GET /api/hibr/investigate/email/user@corp.com
+    Full email investigation: metadata + fulldata + fullstealer + recursive entity expansion.
     """
-    hibr = get_hibr()
     if not _check():
         raise HTTPException(503, detail=_config_help())
-
-    import asyncio
-    fulldata_task = hibr.search_fulldata("email", email)
-    stealer_task  = hibr.search_fullstealer("email", email)
-    fulldata, stealer = await asyncio.gather(fulldata_task, stealer_task, return_exceptions=True)
-    if isinstance(fulldata, Exception): fulldata = None
-    if isinstance(stealer, Exception):  stealer = None
-
-    return {
-        "email": email,
-        "fulldata": {
-            "total_hits": (fulldata or {}).get("total_hits", 0),
-            "records": (fulldata or {}).get("data", []),
-            "has_more": (fulldata or {}).get("has_next_page", False),
-        },
-        "stealer": {
-            "total_hits": (stealer or {}).get("total_hits", 0),
-            "records": (stealer or {}).get("data", []),
-            "has_more": (stealer or {}).get("has_next_page", False),
-        },
-        "ai_analysis": None,
-    }
+    return await _run_investigation(email, "email", refresh)
 
 
 # ── Helpers ─────────────────────────────────────────────────────────────────────

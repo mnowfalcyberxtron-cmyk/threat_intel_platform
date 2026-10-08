@@ -3,7 +3,7 @@ connectors/advisory_monitor.py — Top 25 Company Advisory Monitor
 Fetches official security advisory RSS feeds and external sources for
 the top 25 technology companies. Runs every 30 minutes.
 
-Produces structured advisories in CyberXTron format with:
+Produces structured advisories in ThreatIntel format with:
 - Company/Product, Title, Summary, Threat Actor, Malware/Exploit
 - Targeted Countries/Industries, IOCs, MITRE TTPs, Reference URLs
 """
@@ -36,7 +36,7 @@ TOP25_ADVISORY_FEEDS = [
     # Fortinet
     {"company": "Fortinet", "type": "official",
      "name": "Fortinet Threat Research",
-     "url": "https://www.fortinet.com/blog/threat-research.rss"},
+     "url": "https://filestore.fortinet.com/fortiguard/rss/threatsignal.xml"},
     # Cisco
     {"company": "Cisco", "type": "official",
      "name": "Cisco Talos Intelligence",
@@ -56,10 +56,6 @@ TOP25_ADVISORY_FEEDS = [
     {"company": "IBM", "type": "official",
      "name": "IBM Security Intelligence",
      "url": "https://securityintelligence.com/feed/"},
-    # Oracle
-    {"company": "Oracle", "type": "official",
-     "name": "Oracle Security Alerts",
-     "url": "https://www.oracle.com/ocom/groups/public/@otn/documents/webcontent/rss-security-alerts.xml"},
     # Palo Alto
     {"company": "Palo Alto Networks", "type": "official",
      "name": "Unit 42 Threat Research",
@@ -68,10 +64,6 @@ TOP25_ADVISORY_FEEDS = [
     {"company": "Check Point", "type": "official",
      "name": "Check Point Research",
      "url": "https://research.checkpoint.com/feed/"},
-    # Adobe
-    {"company": "Adobe", "type": "official",
-     "name": "Adobe Security Bulletins",
-     "url": "https://helpx.adobe.com/security/rss/security-updates.rss"},
     # VMware/Broadcom
     {"company": "VMware", "type": "official",
      "name": "VMware Security Advisories",
@@ -82,8 +74,8 @@ TOP25_ADVISORY_FEEDS = [
      "url": "https://www.intel.com/content/www/us/en/security-center/default.html"},
     # Trend Micro
     {"company": "Trend Micro", "type": "official",
-     "name": "Trend Micro Research",
-     "url": "https://feeds.trendmicro.com/Anti-MalwareBlog/"},
+     "name": "Trend Micro SimplySecurity",
+     "url": "http://feeds.trendmicro.com/TrendMicroSimplySecurity"},
     # Kaspersky
     {"company": "Kaspersky", "type": "official",
      "name": "Kaspersky Securelist",
@@ -121,9 +113,6 @@ TOP25_ADVISORY_FEEDS = [
      "name": "CISA Known Exploited",
      "url": "https://www.cisa.gov/uscert/ncas/alerts.xml"},
     {"company": "ALL", "type": "external",
-     "name": "NIST NVD Recent CVEs",
-     "url": "https://nvd.nist.gov/feeds/xml/cve/misc/nvd-rss.xml"},
-    {"company": "ALL", "type": "external",
      "name": "The Hacker News",
      "url": "https://feeds.feedburner.com/TheHackersNews"},
     {"company": "ALL", "type": "external",
@@ -133,8 +122,8 @@ TOP25_ADVISORY_FEEDS = [
      "name": "SANS Internet Storm Center",
      "url": "https://isc.sans.edu/rssfeed_full.xml"},
     {"company": "ALL", "type": "external",
-     "name": "Rapid7 Vulnerability DB",
-     "url": "https://www.rapid7.com/blog/rss.xml"},
+     "name": "Rapid7 Blog",
+     "url": "https://blog.rapid7.com/rss/"},
     {"company": "ALL", "type": "external",
      "name": "Qualys Security Blog",
      "url": "https://blog.qualys.com/feed"},
@@ -201,7 +190,7 @@ class AdvisoryMonitorConnector(BaseConnector):
     async def fetch(self) -> List[Dict[str, Any]]:
         records = []
         headers = {
-            "User-Agent": "CyberXTron-TIP/2.3 Advisory Monitor",
+            "User-Agent": "ThreatIntel-TIP/2.3 Advisory Monitor",
             "Accept": "application/rss+xml,application/xml,text/xml,*/*",
         }
 
@@ -230,24 +219,16 @@ class AdvisoryMonitorConnector(BaseConnector):
         company = feed_config["company"]
         feed_type = feed_config["type"]
 
-        text = await self._get(url, headers=headers)
-        if not isinstance(text, str) or not text.strip():
+        raw_items = await self._fetch_rss_items(url, headers=headers)
+        if not raw_items:
             return []
 
-        try:
-            root = ET.fromstring(text)
-        except Exception:
-            return []
-
-        ns = {"atom": "http://www.w3.org/2005/Atom"}
         items = []
-
-        for item in (root.findall(".//item") + root.findall(".//atom:entry", ns)):
-            title   = self._xt(item, ["title"]) or ""
-            link    = self._xt(item, ["link","atom:link"], ns) or \
-                     (item.find("link") is not None and item.find("link").get("href","")) or ""
-            summary = self._xt(item, ["description","summary","content","atom:summary"], ns) or ""
-            pubdate = self._xt(item, ["pubDate","published","updated"], ns) or ""
+        for item in raw_items[:15]:
+            title = item.get("title", "")
+            link = item.get("link", "")
+            summary = item.get("summary", "")
+            pubdate = item.get("published", "")
 
             if not title or not link: continue
 
@@ -258,11 +239,10 @@ class AdvisoryMonitorConnector(BaseConnector):
             content = f"{title} {clean}"
             affected_company = company if company != "ALL" else self._detect_company(content)
 
-            # --- STRICT FILTERING FOR EXTERNAL SOURCES ---
-            # If from BleepingComputer/HackerNews/etc (company=="ALL"),
-            # and no Top 25 company was detected, skip it.
+            # --- RELAXED FILTERING FOR EXTERNAL SOURCES ---
+            # Let general threat intel pass through even if it doesn't match a Top 25 company.
             if company == "ALL" and affected_company == "General":
-                continue
+                pass  # Keep it instead of skipping
 
             # Extract structured fields
             cves    = list(set(CVE_RE.findall(content)))
@@ -294,7 +274,7 @@ class AdvisoryMonitorConnector(BaseConnector):
                 "category":         self._categorize(content),
             })
 
-        return items[:15]  # Max 15 per feed
+        return items
 
     def _detect_company(self, text: str) -> str:
         tl = text.lower()

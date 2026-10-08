@@ -1,5 +1,5 @@
 """
-connectors/social_monitor.py — CyberXTron Social Media Threat Monitor
+connectors/social_monitor.py — ThreatIntel Social Media Threat Monitor
 Monitors X (Twitter) and LinkedIn for emerging threats, malware, and zero-day alerts.
 Uses TweetFeed.live for X-based IOCs and a keyword-based search aggregator for emerging news.
 """

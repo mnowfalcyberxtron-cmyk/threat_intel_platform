@@ -4,6 +4,7 @@ Add, edit, delete, test .onion sites without restarting the platform.
 Sites are persisted to the database so they survive restarts.
 """
 
+import asyncio
 import logging
 from typing import Optional
 from fastapi import APIRouter, HTTPException
@@ -15,10 +16,26 @@ dw_router = APIRouter(prefix="/api/darkweb", tags=["Dark Web"])
 
 _db = None
 _scheduler = None
+_tor_status_task = None
 
 
 def get_db():        return _db
 def get_scheduler(): return _scheduler
+
+
+async def _ensure_tor_background():
+    from config import settings
+    from utils.tor_manager import ensure_tor_proxy
+
+    try:
+        await ensure_tor_proxy(
+            settings.TOR_SOCKS_HOST,
+            settings.TOR_SOCKS_PORT,
+            allow_start=True,
+            timeout=8,
+        )
+    except Exception as exc:
+        logger.warning("Background Tor start failed: %s", exc)
 
 
 class OnionSite(BaseModel):
@@ -50,12 +67,25 @@ async def list_sites():
     """
     from config import settings
     db = get_db()
+    await _ensure_table(db)
+    try:
+        await db.sync_config_onions()
+    except Exception as exc:
+        logger.debug("Config onion sync failed while listing sites: %s", exc)
+
+    def normalize_url(url: str) -> str:
+        if not url:
+            return ""
+        url = str(url).strip().lower()
+        if not url.startswith(("http://", "https://")):
+            url = f"http://{url}"
+        return url.rstrip("/")
 
     # Get config defaults
     config_sites = [
         {
             "id": f"config_{i}",
-            "group_name": s["group"],
+            "group_name": s.get("group") or s.get("group_name") or "Unknown",
             "url": s["url"],
             "description": s.get("description", ""),
             "active": True,
@@ -64,7 +94,8 @@ async def list_sites():
         for i, s in enumerate(settings.ONION_SITES)
     ]
 
-    # Get user-added sites from DB
+    # Get DB sites. Config rows are merged into config_sites below instead
+    # of being shown again as user-added rows.
     db_sites = []
     try:
         async with db._conn.execute(
@@ -78,17 +109,71 @@ async def list_sites():
     discovered_sites = await db.get_discovered_onion_sites()
     
     # Deduplicate against config/db sites
-    known_urls = {s["url"].lower() for s in config_sites}
-    known_urls.update({s["url"].lower() for s in db_sites})
+    config_url_set = {normalize_url(s["url"]) for s in config_sites}
+    known_urls = set(config_url_set)
+    known_urls.update({normalize_url(s.get("url")) for s in db_sites})
     
-    filtered_discovered = [s for s in discovered_sites if s["url"].lower() not in known_urls]
+    filtered_discovered = [
+        {**s, "id": f"disc_{i}"}
+        for i, s in enumerate(discovered_sites)
+        if normalize_url(s.get("url")) not in known_urls
+    ]
+
+    # Build DB sites map by normalized URL
+    db_map = {}
+    for s in db_sites:
+        u_norm = normalize_url(s.get("url"))
+        if u_norm:
+            db_map[u_norm] = s
+
+    # Merge DB fields into config sites
+    for s in config_sites:
+        u_norm = normalize_url(s.get("url"))
+        db_row = db_map.get(u_norm)
+        if db_row:
+            s["screenshot_path"] = db_row.get("screenshot_path") or ""
+            s["last_status"] = db_row.get("last_status") or "pending"
+            s["last_checked"] = db_row.get("last_checked")
+            s["page_title"] = db_row.get("page_title") or ""
+            s["full_html"] = db_row.get("full_html") or ""
+            s["db_id"] = db_row.get("id")
+        else:
+            s["screenshot_path"] = ""
+            s["last_status"] = "pending"
+            s["last_checked"] = None
+            s["page_title"] = ""
+            s["full_html"] = ""
+
+    # Merge DB fields into discovered sites (just in case they have a status/screenshot tracked in DB)
+    for s in filtered_discovered:
+        u_norm = normalize_url(s.get("url"))
+        db_row = db_map.get(u_norm)
+        if db_row:
+            s["screenshot_path"] = db_row.get("screenshot_path") or ""
+            s["last_status"] = db_row.get("last_status") or "pending"
+            s["last_checked"] = db_row.get("last_checked")
+            s["page_title"] = db_row.get("page_title") or ""
+            s["full_html"] = db_row.get("full_html") or ""
+            s["db_id"] = db_row.get("id")
+        else:
+            s["screenshot_path"] = ""
+            s["last_status"] = "pending"
+            s["last_checked"] = None
+            s["page_title"] = ""
+            s["full_html"] = ""
+
+    user_sites = [s for s in db_sites if normalize_url(s.get("url")) not in config_url_set]
+    verified_active = sum(
+        1 for s in (config_sites + user_sites + filtered_discovered)
+        if str(s.get("last_status")) == "200"
+    )
 
     return {
         "config_sites": config_sites,
-        "user_sites": db_sites,
+        "user_sites": user_sites,
         "discovered_sites": filtered_discovered,
-        "total": len(config_sites) + len(db_sites) + len(filtered_discovered),
-        "active_count": len(config_sites) + sum(1 for s in db_sites if s.get("active", 1)) + len(filtered_discovered),
+        "total": len(config_sites) + len(user_sites) + len(filtered_discovered),
+        "active_count": verified_active,
         "tor_required": True,
     }
 
@@ -237,7 +322,7 @@ async def mark_site_active(site_id: str):
         # Config site — update by fetching from config list and updating the DB entry
         from config import settings
         idx = int(site_id.split("_")[1])
-        sites_cfg = getattr(settings, "DARKWEB_SITES", [])
+        sites_cfg = getattr(settings, "ONION_SITES", [])
         if idx >= len(sites_cfg):
             raise HTTPException(404, f"Config site index {idx} not found")
         site_cfg = sites_cfg[idx]
@@ -325,34 +410,63 @@ async def test_site(site_id: str):
     # Test connectivity via Tor
     import time
     try:
+        from utils.tor_manager import ensure_tor_proxy
         from aiohttp_socks import ProxyConnector
         import aiohttp, asyncio
-        proxy = f"socks5://{settings.TOR_SOCKS_HOST}:{settings.TOR_SOCKS_PORT}"
-        connector = ProxyConnector.from_url(proxy)
+
+        tor = await ensure_tor_proxy(settings.TOR_SOCKS_HOST, settings.TOR_SOCKS_PORT)
+        if not tor.get("ok"):
+            raise RuntimeError(tor.get("error") or "Tor proxy is not verified")
+
+        proxy = tor["proxy_url"]
+        connector = ProxyConnector.from_url(proxy, rdns=True)
         timeout = aiohttp.ClientTimeout(total=30)
         start = time.time()
         async with aiohttp.ClientSession(connector=connector, timeout=timeout) as sess:
-            async with sess.get(url, headers={"User-Agent": "Mozilla/5.0"}, allow_redirects=True) as resp:
+            async with sess.get(url, headers={"User-Agent": "Mozilla/5.0"}, allow_redirects=True, ssl=False) as resp:
                 elapsed = round((time.time() - start) * 1000)
                 content_len = len(await resp.read())
 
                 if resp.status == 200:
-                    # Update last_checked in DB if it's a persistent site
-                    if not str(site_id).startswith("config_") and not str(site_id).startswith("disc_"):
-                        # SUCCESS! Trigger a full scrape (screenshot, metadata) in background
+                    # SUCCESS! Upsert the site into DB and trigger background targeted scan for metadata & screenshot
+                    db = get_db()
+                    db_id = None
+                    try:
+                        # Normalize URL
+                        norm_url = url.strip()
+                        if ".onion" in norm_url and not norm_url.startswith("http"):
+                            norm_url = f"http://{norm_url}"
+
+                        await db._conn.execute(
+                            """INSERT INTO onion_sites (group_name, url, description, active, last_status, last_checked)
+                               VALUES (?, ?, 'Auto-tracked Site', 1, '200', datetime('now'))
+                               ON CONFLICT(url) DO UPDATE SET last_status='200', last_checked=datetime('now')""",
+                            (group.strip(), norm_url)
+                        )
+                        await db._conn.commit()
+                        
+                        async with db._conn.execute("SELECT id FROM onion_sites WHERE url=?", (norm_url,)) as c_id:
+                            db_row = await c_id.fetchone()
+                        if db_row:
+                            db_id = db_row[0]
+                    except Exception as db_err:
+                        logger.error(f"Failed to upsert onion site during test: {db_err}")
+
+                    if db_id:
                         try:
                             from connectors.onion_monitor import OnionMonitorConnector
                             connector_monitor = OnionMonitorConnector(db)
-                            asyncio.create_task(connector_monitor.run_targeted_scan(int(site_id)))
-                            logger.info(f"Triggered full scrape for {group} after successful test.")
+                            asyncio.create_task(connector_monitor.run_targeted_scan(db_id))
+                            logger.info(f"Triggered background scrape/screenshot for {group} (ID: {db_id}) after successful test.")
                         except Exception as se:
-                            logger.error(f"Failed to trigger scrape: {se}")
+                            logger.error(f"Failed to trigger screenshot scrape: {se}")
 
                     return {
                         "status": "reachable",
                         "http_status": 200,
                         "group_name": group,
                         "url": url,
+                        "proxy": proxy,
                         "latency_ms": elapsed,
                         "content_bytes": content_len,
                         "message": "Site is online. Triggered full scrape & screenshot.",
@@ -371,6 +485,7 @@ async def test_site(site_id: str):
                         "http_status": resp.status,
                         "group_name": group,
                         "url": url,
+                        "proxy": proxy,
                         "latency_ms": elapsed,
                         "message": f"HTTP {resp.status}",
                     }
@@ -444,35 +559,93 @@ async def get_darkweb_results(
 @dw_router.get("/tor/status")
 async def tor_status():
     """Check if Tor is running and reachable."""
+    global _tor_status_task
     from config import settings
     try:
-        from aiohttp_socks import ProxyConnector
-        import aiohttp
-        proxy = f"socks5://{settings.TOR_SOCKS_HOST}:{settings.TOR_SOCKS_PORT}"
-        connector = ProxyConnector.from_url(proxy)
-        timeout = aiohttp.ClientTimeout(total=15)
-        async with aiohttp.ClientSession(connector=connector, timeout=timeout) as sess:
-            async with sess.get("https://check.torproject.org/api/ip") as resp:
-                data = await resp.json()
-                return {
-                    "tor_running": data.get("IsTor", False),
-                    "exit_ip": data.get("IP", "unknown"),
-                    "proxy": f"{settings.TOR_SOCKS_HOST}:{settings.TOR_SOCKS_PORT}",
-                    "message": "Tor is working correctly" if data.get("IsTor") else "Connected but not via Tor",
-                }
+        from utils.tor_manager import ensure_tor_proxy, find_tor_binary, is_tor_running
+
+        tor = await ensure_tor_proxy(
+            settings.TOR_SOCKS_HOST,
+            settings.TOR_SOCKS_PORT,
+            allow_start=False,
+            timeout=3,
+        )
+        if tor.get("ok"):
+            return {
+                "tor_running": True,
+                "starting": False,
+                "exit_ip": tor.get("exit_ip", "unknown"),
+                "proxy": f"{tor.get('host')}:{tor.get('port')}",
+                "proxy_url": tor.get("proxy_url"),
+                "message": "Tor is working correctly",
+            }
+
+        attempts = tor.get("attempts") or []
+        open_ports = [
+            f"{a.get('host')}:{a.get('port')}"
+            for a in attempts
+            if a.get("host") and a.get("port") and is_tor_running(a.get("host"), a.get("port"))
+        ]
+
+        starting = bool(_tor_status_task and not _tor_status_task.done())
+        if not starting and settings.TOR_AUTO_START:
+            _tor_status_task = asyncio.create_task(_ensure_tor_background())
+            starting = True
+
+        return {
+            "tor_running": False,
+            "starting": starting,
+            "auto_start": bool(settings.TOR_AUTO_START),
+            "tor_binary_found": bool(find_tor_binary()),
+            "proxy": f"{settings.TOR_SOCKS_HOST}:{settings.TOR_SOCKS_PORT}",
+            "checked_ports": [f"{a.get('host')}:{a.get('port')}" for a in attempts if a.get("host") and a.get("port")],
+            "open_ports": open_ports,
+            "error": str(tor.get("error") or "")[:240],
+            "message": "Tor is starting in the background." if starting else "No verified Tor proxy found.",
+            "install_guide": {
+                "windows": "Open Tor Browser, or set TOR_AUTO_START=true so the app can start tor.exe in the background.",
+                "verify": f"curl.exe --socks5-hostname {settings.TOR_SOCKS_HOST}:{settings.TOR_SOCKS_PORT} https://check.torproject.org/api/ip",
+            }
+        }
     except Exception as e:
+        # Fallback to checking if the SOCKS port is open locally
+        port_open = False
+        try:
+            from utils.tor_manager import is_tor_running
+            port_open = is_tor_running(settings.TOR_SOCKS_HOST, settings.TOR_SOCKS_PORT)
+        except Exception:
+            pass
+
+        if port_open:
+            return {
+                "tor_running": False,
+                "exit_ip": "unknown (circuit building)",
+                "proxy": f"{settings.TOR_SOCKS_HOST}:{settings.TOR_SOCKS_PORT}",
+                "message": "A local port is open, but it was not verified as Tor.",
+            }
+
         return {
             "tor_running": False,
             "proxy": f"{settings.TOR_SOCKS_HOST}:{settings.TOR_SOCKS_PORT}",
             "error": str(e)[:200],
             "install_guide": {
-                "linux": "sudo apt install tor && sudo systemctl start tor",
-                "mac":   "brew install tor && brew services start tor",
-                "windows": "Install Tor Browser from torproject.org (port 9150)",
-                "verify": f"curl --socks5-hostname {settings.TOR_SOCKS_HOST}:{settings.TOR_SOCKS_PORT} https://check.torproject.org/api/ip",
+                "windows": "Open Tor Browser and keep it running. Tor Browser usually listens on 127.0.0.1:9150.",
+                "verify": f"curl.exe --socks5-hostname {settings.TOR_SOCKS_HOST}:{settings.TOR_SOCKS_PORT} https://check.torproject.org/api/ip",
             }
         }
 
+@dw_router.post("/tor/stop")
+async def tor_stop():
+    """Stop the background Tor process to release file locks."""
+    try:
+        from utils.tor_manager import stop_tor
+        success = stop_tor()
+        if success:
+            return {"status": "success", "message": "Tor process stopped. You can now modify/delete Tor files."}
+        else:
+            return {"status": "error", "message": "Could not stop Tor process. See logs for details."}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 # ── DB helper ──────────────────────────────────────────────────────────────────
 

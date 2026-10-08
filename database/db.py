@@ -1,11 +1,14 @@
 """
-database/db.py — CyberXTron TIP v2.4 Complete Database Layer
+database/db.py — ThreatIntel TIP v2.4 Complete Database Layer
 KEY FIX: _migrate() creates ALL missing tables on existing databases.
 """
 import json
 import logging
 import asyncio
-import aiosqlite
+import asyncpg
+import urllib.parse
+
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -20,20 +23,136 @@ def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-class Database:
+_PLACEHOLDER_VALUES = {"", "unknown", "n/a", "na", "none", "null", "-", "see advisory", "see vendor advisory"}
+
+
+def _is_placeholder_text(value: Any) -> bool:
+    return str(value or "").strip().lower() in _PLACEHOLDER_VALUES
+
+
+def _derive_fixed_version_hint(text: Any) -> str:
+    """Best-effort extraction of a fixed version from affected-version text."""
+    raw = str(text or "").strip()
+    if not raw or _is_placeholder_text(raw):
+        return "Unknown"
+
+    patterns = [
+        r"(?i)(?:fixed in|patched in|resolved in|update to|upgrade to|upgrade to version|update to version|available in)\s*(?:version\s*)?([A-Za-z0-9][A-Za-z0-9_.\-+/:]*)",
+        r"(?i)(?:version|v)\s*([0-9][A-Za-z0-9_.\-+/:]*)\s*(?:and later|or later|or newer|and newer)",
+        r"(?i)(?:prior to|before|less than|earlier than|older than|under)\s*(?:v(?:ersion)?\s*)?([A-Za-z0-9][A-Za-z0-9_.\-+/:]*)",
+        r"(?i)(?:<|<=)\s*v?([A-Za-z0-9][A-Za-z0-9_.\-+/:]*)",
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, raw)
+        if not match:
+            continue
+        value = (match.group(1) if match.groups() else match.group(0)).strip()
+        value = value.lstrip("vV").strip()
+        if not value or value.lower() in {"all/*", "all"}:
+            continue
+        if any(ch.isdigit() for ch in value) or re.search(r"[A-Za-z].*\d|\d.*[A-Za-z]", value):
+            return value[:80]
+
+    return "Unknown"
+
+
+
+class CursorWrapper:
+    def __init__(self, conn, sql, params):
+        self.conn = conn
+        self.sql = sql
+        self.params = params
+        self._fetched = None
+        self._rowcount = 0
+        self._lastrowid = 0
+
+    def __await__(self):
+        return self._execute().__await__()
+
+    async def __aenter__(self):
+        await self._execute()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        pass
+
+    async def _execute(self):
+        parts = self.sql.split('?')
+        pg_sql = parts[0] + ''.join(f'${i+1}{p}' for i, p in enumerate(parts[1:]))
+        
+        pg_sql = pg_sql.replace('INSERT OR IGNORE INTO', 'INSERT INTO')
+        pg_sql = pg_sql.replace("datetime('now')", "NOW()")
+        pg_sql = pg_sql.replace("datetime('now','-1 day')", "NOW() - INTERVAL '1 day'")
+        pg_sql = pg_sql.replace("datetime('now','-7 days')", "NOW() - INTERVAL '7 days'")
+        pg_sql = pg_sql.replace("datetime('now','-30 days')", "NOW() - INTERVAL '30 days'")
+        pg_sql = pg_sql.replace("datetime('now','start of day')", "CURRENT_DATE::timestamp")
+        
+        if pg_sql.strip().upper().startswith(("INSERT", "UPDATE", "DELETE")):
+            if pg_sql.strip().upper().startswith("INSERT") and "RETURNING" not in pg_sql.upper() and "ON CONFLICT" not in pg_sql.upper():
+                try:
+                    record = await self.conn.fetchrow(pg_sql + " RETURNING id", *self.params)
+                    self._lastrowid = record['id'] if record and 'id' in record else 0
+                    self._rowcount = 1
+                    return self
+                except asyncpg.exceptions.UndefinedColumnError:
+                    pass
+            
+            res = await self.conn.execute(pg_sql, *self.params)
+            try:
+                self._rowcount = int(res.split()[-1])
+            except:
+                self._rowcount = 1
+        else:
+            self._fetched = await self.conn.fetch(pg_sql, *self.params)
+        return self
+
+    async def fetchall(self):
+        if self._fetched is None:
+            await self._execute()
+        if not self._fetched: return []
+        return [dict(r) for r in self._fetched]
+
+    async def fetchone(self):
+        if self._fetched is None:
+            await self._execute()
+        if not self._fetched:
+            return None
+        return dict(self._fetched[0])
+
+    @property
+    def lastrowid(self):
+        return self._lastrowid
+
+    @property
+    def rowcount(self):
+        return self._rowcount
+
+class ConnectionWrapper:
+    def __init__(self, pg_conn):
+        self.pg_conn = pg_conn
+
+    def execute(self, sql, params=()):
+        return CursorWrapper(self.pg_conn, sql, params)
+        
+    async def commit(self):
+        pass
+
+    async def close(self):
+        await self.pg_conn.close()
+\nclass Database:
     def __init__(self):
+        self._db_url = getattr(settings, "DATABASE_URL", "")
         self._db_path = settings.DB_PATH
         self._conn: Optional[aiosqlite.Connection] = None
 
     async def initialize(self):
-        Path(self._db_path).parent.mkdir(parents=True, exist_ok=True)
-        self._conn = await aiosqlite.connect(self._db_path)
-        self._conn.row_factory = aiosqlite.Row
-        await self._conn.execute("PRAGMA journal_mode=WAL")
-        await self._conn.execute("PRAGMA synchronous=NORMAL")
-        await self._conn.execute("PRAGMA foreign_keys=ON")
-        await self._conn.execute("PRAGMA cache_size=-32000")
-        await self._conn.execute("PRAGMA page_size=4096")
+        db_url = getattr(settings, "DATABASE_URL", None)
+        if not db_url:
+            db_url = "postgresql://postgres:postgres@localhost:5432/threatintel"
+            
+        pg_conn = await asyncpg.connect(db_url)
+        self._conn = ConnectionWrapper(pg_conn)
 
         # Apply all schemas - CREATE IF NOT EXISTS is safe on existing DBs
         for schema in ALL_SCHEMAS:
@@ -65,6 +184,29 @@ class Database:
             ("ALTER TABLE onion_sites ADD COLUMN screenshot_path TEXT DEFAULT ''",),
             ("ALTER TABLE onion_sites ADD COLUMN site_type TEXT DEFAULT 'ransomware'",),
             ("UPDATE onion_sites SET screenshot_path = REPLACE(screenshot_path, '\\', '/') WHERE screenshot_path LIKE '%\\%'",),
+            ("ALTER TABLE ics_advisories ADD COLUMN vendor_hq TEXT DEFAULT ''",),
+            ("ALTER TABLE ics_advisories ADD COLUMN product_distribution TEXT DEFAULT ''",),
+            ("ALTER TABLE ics_advisories ADD COLUMN kev_flag TEXT DEFAULT ''",),
+            ("ALTER TABLE ics_advisories ADD COLUMN nist_url TEXT DEFAULT ''",),
+            ("ALTER TABLE ics_advisories ADD COLUMN csaf_url TEXT DEFAULT ''",),
+            ("ALTER TABLE ics_advisories ADD COLUMN release_year INTEGER DEFAULT NULL",),
+            ("ALTER TABLE ics_advisories ADD COLUMN release_month INTEGER DEFAULT NULL",),
+            ("ALTER TABLE ics_advisories ADD COLUMN update_year INTEGER DEFAULT NULL",),
+            ("ALTER TABLE ics_advisories ADD COLUMN update_month INTEGER DEFAULT NULL",),
+            ("ALTER TABLE ics_advisories ADD COLUMN cve_year INTEGER DEFAULT NULL",),
+            ("ALTER TABLE ics_advisories ADD COLUMN nvd_cvss_v4_score TEXT DEFAULT ''",),
+            ("ALTER TABLE ics_advisories ADD COLUMN nvd_enrichment_status TEXT DEFAULT 'pending'",),
+            # CVEList V5 enrichment columns (cve_published_date from GitHub cvelistV5 zip)
+            ("ALTER TABLE ics_advisories ADD COLUMN cve_published_date TEXT DEFAULT ''",),
+            ("ALTER TABLE ics_advisories ADD COLUMN cve_updated_date TEXT DEFAULT ''",),
+            ("ALTER TABLE ics_advisories ADD COLUMN cve_pub_year INTEGER DEFAULT NULL",),
+            ("ALTER TABLE ics_advisories ADD COLUMN cve_pub_month INTEGER DEFAULT NULL",),
+            ("ALTER TABLE ics_advisories ADD COLUMN cvelist_status TEXT DEFAULT 'pending'",),
+            # AI enrichment columns
+            ("ALTER TABLE ics_advisories ADD COLUMN ai_enriched INTEGER DEFAULT 0",),
+            ("ALTER TABLE ics_advisories ADD COLUMN patch_available_bool TEXT DEFAULT ''",),
+            ("ALTER TABLE ics_advisories ADD COLUMN poc_available_bool TEXT DEFAULT ''",),
+            ("ALTER TABLE ics_advisories ADD COLUMN xtron_score INTEGER DEFAULT NULL",),
         ]
         for (sql,) in migrations:
             try:
@@ -73,9 +215,85 @@ class Database:
             except Exception:
                 pass  # Column already exists — that's fine
 
+        try:
+            await self._conn.execute(
+                """UPDATE ics_advisories
+                   SET
+                     release_year = COALESCE(release_year, CAST(
+                       CASE
+                         WHEN substr(trim(release_date), 5, 1) = '-' THEN substr(trim(release_date), 1, 4)
+                         WHEN instr(trim(release_date), '/') > 0 THEN substr(trim(release_date), length(trim(release_date))-3, 4)
+                         WHEN lower(substr(trim(release_date), 1, 3)) IN ('jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec')
+                           THEN substr(trim(release_date), length(trim(release_date))-3, 4)
+                         ELSE NULL
+                       END AS INTEGER)),
+                     release_month = COALESCE(release_month, CAST(
+                       CASE
+                         WHEN substr(trim(release_date), 5, 1) = '-' THEN substr(trim(release_date), 6, 2)
+                         WHEN instr(trim(release_date), '/') > 0 THEN substr(trim(release_date), 1, instr(trim(release_date), '/')-1)
+                         WHEN lower(substr(trim(release_date), 1, 3)) = 'jan' THEN '1'
+                         WHEN lower(substr(trim(release_date), 1, 3)) = 'feb' THEN '2'
+                         WHEN lower(substr(trim(release_date), 1, 3)) = 'mar' THEN '3'
+                         WHEN lower(substr(trim(release_date), 1, 3)) = 'apr' THEN '4'
+                         WHEN lower(substr(trim(release_date), 1, 3)) = 'may' THEN '5'
+                         WHEN lower(substr(trim(release_date), 1, 3)) = 'jun' THEN '6'
+                         WHEN lower(substr(trim(release_date), 1, 3)) = 'jul' THEN '7'
+                         WHEN lower(substr(trim(release_date), 1, 3)) = 'aug' THEN '8'
+                         WHEN lower(substr(trim(release_date), 1, 3)) = 'sep' THEN '9'
+                         WHEN lower(substr(trim(release_date), 1, 3)) = 'oct' THEN '10'
+                         WHEN lower(substr(trim(release_date), 1, 3)) = 'nov' THEN '11'
+                         WHEN lower(substr(trim(release_date), 1, 3)) = 'dec' THEN '12'
+                         ELSE NULL
+                       END AS INTEGER)),
+                     cve_year = COALESCE(cve_year, CAST(
+                       CASE WHEN upper(cve_id) LIKE 'CVE-____-%' THEN substr(cve_id, 5, 4) ELSE NULL END
+                       AS INTEGER))
+                   WHERE release_year IS NULL OR release_month IS NULL OR cve_year IS NULL"""
+            )
+            await self._conn.commit()
+        except Exception as exc:
+            logger.debug("ICS date-part backfill skipped: %s", exc)
+
+        for sql in (
+            "CREATE INDEX IF NOT EXISTS idx_ics_release_ym ON ics_advisories(release_year, release_month)",
+            "CREATE INDEX IF NOT EXISTS idx_ics_cve_year ON ics_advisories(cve_year)",
+            "CREATE INDEX IF NOT EXISTS idx_ics_cve_pub_ym ON ics_advisories(cve_pub_year, cve_pub_month)",
+        ):
+            try:
+                await self._conn.execute(sql)
+                await self._conn.commit()
+            except Exception:
+                pass
+
     async def close(self):
         if self._conn:
             await self._conn.close()
+
+    async def _retry_execute(self, sql: str, params=None, max_retries=3, delay=0.1):
+        """Execute with automatic retry on database lock."""
+        for attempt in range(max_retries):
+            try:
+                return await self._conn.execute(sql, params or ())
+            except asyncpg.exceptions.PostgresError as e:
+                if "database is locked" not in str(e):
+                    raise
+                if attempt == max_retries - 1:
+                    raise
+                wait_time = delay * (2 ** attempt)  # exponential backoff
+                await asyncio.sleep(wait_time)
+        
+    async def _retry_commit(self, max_retries=3, delay=0.1):
+        """Commit with automatic retry on database lock."""
+        for attempt in range(max_retries):
+            try:
+                return await self._conn.commit()
+            except asyncpg.exceptions.PostgresError as e:
+                if "database is locked" not in str(e):
+                    raise
+                if attempt == max_retries - 1:
+                    raise
+                wait_time = delay * (2 ** attempt)
+                await asyncio.sleep(wait_time)
 
     async def _seed_sources(self):
         for name, display, tier in DEFAULT_SOURCES:
@@ -87,7 +305,7 @@ class Database:
 
     # ── IOC Operations ─────────────────────────────────────────────────────────
 
-    async def upsert_ioc(self, record: Dict[str, Any]) -> Tuple[int, bool]:
+    async def upsert_ioc(self, record: dict) -> tuple[int, bool]:
         ioc   = record.get("ioc", "").strip().lower()
         itype = record.get("ioc_type", "").strip().lower()
         
@@ -97,12 +315,17 @@ class Database:
 
         if not ioc or not itype:
             return 0, False
-        ts = now_iso()
+        
+        # ensure ts is available
+        from datetime import datetime, timezone
+        ts = datetime.now(timezone.utc).isoformat()
+        
         async with self._conn.execute(
             "SELECT id, sources, source_count FROM iocs WHERE ioc=? AND ioc_type=?", (ioc, itype)
         ) as cur:
             existing = await cur.fetchone()
         if existing:
+            import json
             srcs = json.loads(existing["sources"] or "[]")
             src  = record.get("source","unknown")
             if src not in srcs: srcs.append(src)
@@ -110,15 +333,18 @@ class Database:
             await self._conn.execute(
                 """UPDATE iocs SET sources=?,source_count=?,confidence=?,confidence_label=?,
                    threat_actor=COALESCE(NULLIF(?,''),NULLIF(threat_actor,'unknown'),threat_actor),
-                   malware=COALESCE(NULLIF(?,''),malware),tags=?,last_seen=?,updated_at=?
+                   malware=COALESCE(NULLIF(?,''),malware),campaign=COALESCE(NULLIF(?,''),campaign),
+                   tags=?,last_seen=?,updated_at=?
                    WHERE id=?""",
                 (json.dumps(srcs), len(srcs), conf, self._clabel(conf),
                  record.get("threat_actor",""), record.get("malware",""),
+                 record.get("campaign",""),
                  json.dumps(record.get("tags",[])), record.get("last_seen",ts), ts, existing["id"])
             )
             await self._conn.commit()
             return existing["id"], False
         else:
+            import json
             srcs = [record.get("source","unknown")]
             conf = self._calc_conf(srcs, record.get("first_seen", ts))
             cur  = await self._conn.execute(
@@ -140,6 +366,7 @@ class Database:
         base = sum(w.get(s, 0.5) for s in sources) / max(len(sources),1)
         multi = min((len(sources)-1)*0.05, 0.15)
         try:
+            from datetime import datetime, timezone
             ts  = datetime.fromisoformat(first_seen.replace("Z","+00:00"))
             age = (datetime.now(timezone.utc)-ts).total_seconds()/3600
             rec = 0.05 if age<=24 else (0.02 if age<=168 else 0)
@@ -193,6 +420,45 @@ class Database:
         async with self._conn.execute("SELECT * FROM iocs WHERE ioc=?", (ioc,)) as cur:
             row = await cur.fetchone()
         return dict(row) if row else None
+
+    async def get_campaigns(self, limit=50) -> List[Dict]:
+        async with self._conn.execute(
+            "SELECT campaign, COUNT(*) as ioc_count, MAX(last_seen) as last_seen FROM iocs WHERE campaign != '' GROUP BY campaign ORDER BY last_seen DESC LIMIT ?",
+            (limit,)
+        ) as cur:
+            rows = await cur.fetchall()
+        return [dict(r) for r in rows]
+
+    async def get_campaign_iocs(self, campaign: str, limit=200) -> List[Dict]:
+        async with self._conn.execute(
+            "SELECT * FROM iocs WHERE campaign = ? ORDER BY last_seen DESC LIMIT ?",
+            (campaign, limit)
+        ) as cur:
+            rows = await cur.fetchall()
+        return [dict(r) for r in rows]
+
+    async def get_actor_links(self, actor: str) -> List[Dict]:
+        links = []
+        # Get onion sites
+        async with self._conn.execute(
+            "SELECT url, 'onion' as type FROM onion_sites WHERE group_name = ? AND active = 1",
+            (actor,)
+        ) as cur:
+            onion_rows = await cur.fetchall()
+            for r in onion_rows:
+                links.append({"url": r["url"], "type": "onion"})
+        
+        # Get telegram channels matching name loosely
+        like_actor = f"%{actor}%"
+        async with self._conn.execute(
+            "SELECT url, 'telegram' as type FROM telegram_channels WHERE name LIKE ? OR handle LIKE ?",
+            (like_actor, like_actor)
+        ) as cur:
+            tg_rows = await cur.fetchall()
+            for r in tg_rows:
+                links.append({"url": r["url"], "type": "telegram"})
+                
+        return links
 
     # ── Victim Operations ───────────────────────────────────────────────────────
 
@@ -322,14 +588,18 @@ class Database:
 
     async def update_source_status(self, name: str, status: str, records_fetched=0, error_msg=""):
         ts = now_iso()
-        await self._conn.execute(
-            """UPDATE sources SET status=?,last_fetched=?,
-               last_success=CASE WHEN ?='ok' THEN ? ELSE last_success END,
-               records_fetched=?,total_records=total_records+?,error_msg=?
-               WHERE name=?""",
-            (status,ts,status,ts,records_fetched,records_fetched,error_msg,name)
-        )
-        await self._conn.commit()
+        try:
+            await self._retry_execute(
+                """UPDATE sources SET status=?,last_fetched=?,
+                   last_success=CASE WHEN ?='ok' THEN ? ELSE last_success END,
+                   records_fetched=?,total_records=total_records+?,error_msg=?
+                   WHERE name=?""",
+                (status, ts, status, ts, records_fetched, records_fetched, error_msg, name),
+                max_retries=5
+            )
+            await self._retry_commit(max_retries=5)
+        except Exception as e:
+            logger.warning(f"Failed to update source status for {name}: {e}")
 
     async def get_sources(self) -> List[Dict]:
         async with self._conn.execute("SELECT * FROM sources ORDER BY tier,name") as cur:
@@ -339,11 +609,15 @@ class Database:
     # ── Log Operations ──────────────────────────────────────────────────────────
 
     async def log(self, level: str, source: str, message: str):
-        await self._conn.execute(
-            "INSERT INTO logs (timestamp,level,source,message) VALUES (?,?,?,?)",
-            (now_iso(), level, source, message)
-        )
-        await self._conn.commit()
+        try:
+            await self._retry_execute(
+                "INSERT INTO logs (timestamp,level,source,message) VALUES (?,?,?,?)",
+                (now_iso(), level, source, message),
+                max_retries=3
+            )
+            await self._retry_commit(max_retries=3)
+        except Exception as e:
+            logger.debug(f"Failed to log message: {e}")
 
     async def get_logs(self, limit=300, level=None) -> List[Dict]:
         where = "WHERE level=?" if level else ""
@@ -361,7 +635,7 @@ class Database:
         (
             ioc_stats, victim_stats, alert_stats, tg_stats,
             top_actors, ioc_types, top_groups, daily, top_malware,
-            total_bm
+            total_bm, total_onion, total_adv, total_ics
         ) = await asyncio.gather(
             # Combined IOC stats
             self._query_row("""
@@ -400,7 +674,10 @@ class Database:
             self._query_list("SELECT date(updated_at) as day,COUNT(*) as cnt FROM iocs WHERE updated_at>=datetime('now','-7 days') AND ioc_type <> 'onion' AND NOT (ioc_type='domain' AND ioc LIKE '%.onion%') GROUP BY day ORDER BY day"),
             self._query_list("SELECT malware,COUNT(*) as cnt FROM iocs WHERE malware!='' AND confidence_label='high' GROUP BY malware ORDER BY cnt DESC LIMIT 10"),
             # Single count for small table
-            self._query_val("SELECT COUNT(*) FROM breach_markets")
+            self._query_val("SELECT COUNT(*) FROM breach_markets"),
+            self._query_val("SELECT COUNT(*) FROM onion_sites"),
+            self._query_val("SELECT COUNT(*) FROM advisories"),
+            self._query_val("SELECT COUNT(*) FROM ics_advisories")
         )
 
         return {
@@ -414,6 +691,9 @@ class Database:
             "total_telegram":        tg_stats["total"],
             "active_telegram":       tg_stats["active"] or 0,
             "total_breach_markets":  total_bm,
+            "total_onion_sites":     total_onion,
+            "total_advisories":      total_adv,
+            "total_ics_advisories":  total_ics,
             "top_threat_actors":     top_actors,
             "ioc_type_distribution": ioc_types,
             "top_ransomware_groups": top_groups,
@@ -496,8 +776,12 @@ class Database:
         """
         # We filter by published date to respect the actual news age, 
         # but also allow recently fetched items if published is missing or in the future
+        if str(hours) == "today":
+            time_filter = "(published >= datetime('now','start of day') OR fetched_at >= datetime('now','start of day'))"
+        else:
+            time_filter = f"(published >= datetime('now','-{hours} hours') OR fetched_at >= datetime('now','-{hours} hours'))"
         where = [
-            f"(published >= datetime('now','-{hours} hours') OR fetched_at >= datetime('now','-{hours} hours'))",
+            time_filter,
             "relevance >= ?"
         ]
         params: List[Any] = [min_relevance]
@@ -514,7 +798,7 @@ class Database:
         for r in rows:
             d = dict(r)
             try: d["entities"] = json.loads(d.get("entities","[]"))
-            except: d["entities"] = []
+            except Exception: d["entities"] = []
             items.append(d)
         return items
 
@@ -529,7 +813,7 @@ class Database:
         for r in rows:
             d = dict(r)
             try: d["entities"] = json.loads(d.get("entities","[]"))
-            except: d["entities"] = []
+            except Exception: d["entities"] = []
             items.append(d)
         return items
 
@@ -553,6 +837,10 @@ class Database:
     async def clean_old_feed(self, hours=72):
         await self._conn.execute(
             "DELETE FROM threat_feed WHERE fetched_at<datetime('now',?)", (f"-{hours} hours",)
+        )
+        # Prune status_history older than 30 days (720 hours) to prevent bloat
+        await self._conn.execute(
+            "DELETE FROM status_history WHERE timestamp<datetime('now','-30 days')"
         )
         await self._conn.commit()
 
@@ -598,11 +886,18 @@ class Database:
         Fetch advisories. 
         CRITICAL: Filter by PUBLISHED date to avoid showing old (e.g. 2025) news that was just fetched.
         """
-        # If hours=0 (all time), we don't filter.
+        # If hours="today", we filter since midnight (start of day). Otherwise check numeric hours.
         where = []
-        if hours > 0:
-            # Use published date primarily to exclude old news, fallback to fetched_at if published is missing
-            where.append(f"(CASE WHEN published IS NULL OR published='' THEN fetched_at ELSE published END) >= datetime('now','-{hours} hours')")
+        if str(hours) == "today":
+            where.append("(CASE WHEN published IS NULL OR published='' THEN fetched_at ELSE published END) >= datetime('now','start of day')")
+        else:
+            try:
+                h_int = int(hours)
+            except ValueError:
+                h_int = 168
+            if h_int > 0:
+                # Use published date primarily to exclude old news, fallback to fetched_at if published is missing
+                where.append(f"(CASE WHEN published IS NULL OR published='' THEN fetched_at ELSE published END) >= datetime('now','-{h_int} hours')")
         
         params: List[Any] = []
         if company:       where.append("company LIKE ?");      params.append(f"%{company}%")
@@ -626,27 +921,10 @@ class Database:
             d = dict(r)
             for f in ("cves","iocs","mitre_ttps"):
                 try: d[f] = json.loads(d.get(f) or ("[]" if f!="iocs" else "{}"))
-                except: d[f] = {} if f=="iocs" else []
+                except Exception: d[f] = {} if f=="iocs" else []
             items.append(d)
         return {"total":total,"page":page,"page_size":page_size,"items":items}
 
-    async def sync_discovered_onions(self):
-        """Automatically add discovered .onion sites to the onion_sites table."""
-        try:
-            discovered = await self.get_discovered_onion_sites()
-            for s in discovered:
-                url = s["url"].lower()
-                # Use INSERT OR IGNORE to avoid duplicates
-                await self._conn.execute(
-                    """INSERT OR IGNORE INTO onion_sites 
-                       (group_name, url, description, active, created_at, last_checked, last_status) 
-                       VALUES (?, ?, ?, 1, datetime('now'), NULL, 'pending')""",
-                    (s["group_name"], s["url"], "Discovered automatically from intelligence feeds")
-                )
-            await self._conn.commit()
-        except Exception as e:
-            import logging
-            logging.getLogger("db").error(f"sync_discovered_onions failed: {e}")
 
     async def get_advisory_stats(self) -> Dict:
         async with self._conn.execute(
@@ -701,26 +979,58 @@ class Database:
         ) as cur:
             i_rows = await cur.fetchall()
 
-        # 3. Indirect discovery
-        async with self._conn.execute(
-            """SELECT DISTINCT v.group_name, i.ioc as url
-               FROM ransomware_victims v
-               JOIN iocs i ON LOWER(v.group_name) = LOWER(i.threat_actor)
-               WHERE i.ioc_type IN ('domain', 'onion') AND i.ioc LIKE '%.onion%'"""
-        ) as cur:
-            iv_rows = await cur.fetchall()
+        # Build a case-insensitive lookup map of victim groups to ensure proper casing
+        victim_group_map = {}
+        for row in v_rows:
+            g = row["group_name"]
+            if g:
+                victim_group_map[g.lower().strip()] = g.strip()
 
         results = []
         seen_urls = {s["url"].lower() for s in await self.get_all_onion_sites(active_only=False)}
         
-        for row in v_rows + i_rows + iv_rows:
+        # Combine and deduplicate rows in Python memory (instant!)
+        for row in v_rows + i_rows:
             g = (row["group_name"] or "unknown").strip()
             u = (row["url"] or "").strip().lower()
             if g and u and ".onion" in u:
+                # Apply preferred victim casing if available
+                g_mapped = victim_group_map.get(g.lower(), g)
                 if u not in seen_urls:
-                    results.append({"group_name": g, "url": u, "last_status": "pending"})
+                    results.append({"group_name": g_mapped, "url": u, "last_status": "pending"})
                     seen_urls.add(u)
         return results
+
+    async def sync_config_onions(self) -> int:
+        """Ensure settings.ONION_SITES are present in onion_sites for monitoring."""
+        added = 0
+        for site in getattr(settings, "ONION_SITES", []):
+            group = (site.get("group") or site.get("group_name") or "Unknown").strip()
+            url = (site.get("url") or "").strip()
+            if not group or ".onion" not in url.lower():
+                continue
+            if not url.lower().startswith(("http://", "https://")):
+                url = f"http://{url}"
+            desc = (site.get("description") or "Configured onion site").strip()
+            site_type = (site.get("site_type") or "ransomware").strip()
+            try:
+                cur = await self._conn.execute(
+                    """INSERT INTO onion_sites (group_name, url, description, site_type, active)
+                       VALUES (?, ?, ?, ?, 1)
+                       ON CONFLICT(url) DO UPDATE SET
+                         group_name=excluded.group_name,
+                         description=CASE
+                           WHEN description IS NULL OR description=''
+                           THEN excluded.description ELSE description END,
+                         site_type=COALESCE(NULLIF(site_type,''), excluded.site_type)""",
+                    (group, url, desc, site_type),
+                )
+                if cur.rowcount > 0:
+                    added += 1
+            except Exception as exc:
+                logger.debug("Config onion sync skipped %s: %s", url, exc)
+        await self._conn.commit()
+        return added
 
     async def get_onion_for_group(self, group_name: str) -> Optional[str]:
         """Try to find a .onion URL for a given group name."""
@@ -747,6 +1057,7 @@ class Database:
         to the onion_sites table for automated monitoring.
         """
         logger.info("[DB] Syncing discovered onion sites from ransomware victims...")
+        await self.sync_config_onions()
         discovered = await self.get_discovered_onion_sites()
         new_count = 0
         for site in discovered:
@@ -775,14 +1086,18 @@ class Database:
     async def update_onion_scrape(self, site_id: int, title: str, generator: str, 
                                  content: str, full_html: str, screenshot_path: str):
         now = now_iso()
-        await self._conn.execute(
-            """UPDATE onion_sites SET 
-               page_title=?, meta_generator=?, last_content=?, full_html=?, 
-               screenshot_path=?, last_checked=?, last_status='200' 
-               WHERE id=?""",
-            (title, generator, content, full_html, screenshot_path, now, site_id)
-        )
-        await self._conn.commit()
+        try:
+            await self._retry_execute(
+                """UPDATE onion_sites SET 
+                   page_title=?, meta_generator=?, last_content=?, full_html=?, 
+                   screenshot_path=?, last_checked=?, last_status='200' 
+                   WHERE id=?""",
+                (title, generator, content, full_html, screenshot_path, now, site_id),
+                max_retries=5
+            )
+            await self._retry_commit(max_retries=5)
+        except Exception as e:
+            logger.warning(f"Failed to update onion scrape for site {site_id}: {e}")
 
     # ── Social Intelligence ───────────────────────────────────────────────────
 
@@ -825,7 +1140,7 @@ class Database:
         for r in rows:
             d = dict(r)
             try: d["entities"] = json.loads(d.get("entities", "[]"))
-            except: d["entities"] = []
+            except Exception: d["entities"] = []
             items.append(d)
         return {"total": total, "page": page, "page_size": page_size, "items": items}
 
@@ -935,3 +1250,595 @@ class Database:
         ) as cur:
             rows = await cur.fetchall()
         return [dict(r) for r in rows]
+
+    # ── ICS Advisory (persistent, budget-aware) ──────────────────────────────────────
+
+    async def upsert_ics_advisory(self, record: Dict[str, Any]) -> Tuple[int, bool]:
+        """
+        Insert or update an ICS advisory record.
+        Stores a flattened JSON snapshot (normalized_data) via pandas.json_normalize
+        so any new API fields are captured automatically.
+        """
+        ics_number = (record.get("ics_number") or record.get("advisory_id") or "").strip()
+        cve_id     = (record.get("cve_id") or "N/A").strip().upper()
+        if not ics_number and cve_id == "N/A":
+            return 0, False
+
+        ts = now_iso()
+        async with self._conn.execute(
+            "SELECT * FROM ics_advisories WHERE ics_number=? AND cve_id=?",
+            (ics_number, cve_id)
+        ) as cur:
+            existing = await cur.fetchone()
+
+        existing_row = dict(existing) if existing else None
+
+        def _json_obj(value: Any) -> Dict[str, Any]:
+            try:
+                parsed = json.loads(value or "{}")
+                return parsed if isinstance(parsed, dict) else {}
+            except Exception:
+                return {}
+
+        def _existing_has_official_cvelist(row: Dict[str, Any]) -> bool:
+            raw = _json_obj(row.get("raw_data"))
+            norm = _json_obj(row.get("normalized_data"))
+            return bool(raw.get("cvelist_official") or norm.get("cvelist_official"))
+
+        def _keep_existing(column: str, *record_keys: str) -> None:
+            if not existing_row:
+                return
+            value = existing_row.get(column)
+            if _is_placeholder_text(value):
+                return
+            for key in record_keys:
+                record[key] = value
+
+        if existing_row and _existing_has_official_cvelist(existing_row):
+            _keep_existing("vendor", "affected_vendor", "vendor")
+            _keep_existing("product", "affected_application", "product")
+            _keep_existing("cvss_score", "cvss_score")
+            _keep_existing("severity", "cvss_severity", "severity")
+            _keep_existing("cwe", "cwe")
+            _keep_existing("vendor_hq", "vendor_hq")
+
+        if existing_row and int(existing_row.get("ai_enriched") or 0) == 1:
+            _keep_existing("title", "title")
+            _keep_existing("impact", "impact")
+            _keep_existing("affected_version", "affected_version")
+            _keep_existing("fixed_version", "fixed_version")
+            _keep_existing("patch_availability", "patch_availability")
+            _keep_existing("poc_availability", "poc_availability")
+
+        severity_raw = (record.get("cvss_severity") or record.get("severity") or "medium").lower()
+        severity = severity_raw if severity_raw in ("critical","high","medium","low") else "medium"
+        parsed_release_year, parsed_release_month = self._parse_ics_date_parts(
+            record.get("release_date") or record.get("published_date") or ""
+        )
+        parsed_update_year, parsed_update_month = self._parse_ics_date_parts(record.get("last_updated") or "")
+        release_year = self._int_or_none(record.get("release_year") or record.get("published_year") or record.get("year")) or parsed_release_year
+        release_month = self._int_or_none(record.get("release_month") or record.get("published_month") or record.get("month")) or parsed_release_month
+        update_year = self._int_or_none(record.get("update_year")) or parsed_update_year
+        update_month = self._int_or_none(record.get("update_month")) or parsed_update_month
+        cve_year = self._int_or_none(record.get("cve_year"))
+        affected_version = record.get("affected_version", "")
+        fixed_version = record.get("fixed_version", "")
+        if _is_placeholder_text(fixed_version):
+            fixed_version = _derive_fixed_version_hint(affected_version)
+
+        normalized_record = dict(record)
+        normalized_record["affected_version"] = affected_version
+        normalized_record["fixed_version"] = fixed_version
+        if existing_row:
+            old_normalized = _json_obj(existing_row.get("normalized_data"))
+            if old_normalized:
+                old_normalized.update(normalized_record)
+                normalized_record = old_normalized
+            for key in (
+                "ai_enriched",
+                "patch_available_bool",
+                "poc_available_bool",
+                "xtron_score",
+                "cve_published_date",
+                "cve_updated_date",
+                "cve_pub_year",
+                "cve_pub_month",
+                "cvelist_status",
+            ):
+                value = existing_row.get(key)
+                if value not in (None, ""):
+                    normalized_record[key] = value
+            if _existing_has_official_cvelist(existing_row):
+                normalized_record["cvelist_official"] = True
+                normalized_record["cvelist_source"] = "CVEProject/cvelistV5"
+                normalized_record["affected_vendor"] = existing_row.get("vendor") or normalized_record.get("affected_vendor", "")
+                normalized_record["affected_application"] = existing_row.get("product") or normalized_record.get("affected_application", "")
+                normalized_record["vendor"] = existing_row.get("vendor") or normalized_record.get("vendor", "")
+                normalized_record["product"] = existing_row.get("product") or normalized_record.get("product", "")
+                normalized_record["cvss_score"] = existing_row.get("cvss_score") or normalized_record.get("cvss_score", "")
+                normalized_record["cvss_severity"] = (existing_row.get("severity") or normalized_record.get("cvss_severity", "") or "").capitalize()
+                normalized_record["severity"] = existing_row.get("severity") or normalized_record.get("severity", "")
+
+        # Build normalized_data using pandas for future-proof flattening
+        try:
+            import pandas as pd
+            flat = pd.json_normalize(normalized_record, sep="_").to_dict(orient="records")
+            normalized = json.dumps(flat[0] if flat else normalized_record)
+        except Exception:
+            normalized = json.dumps(normalized_record)
+
+        if existing:
+            await self._conn.execute(
+                """UPDATE ics_advisories SET
+                   title=COALESCE(NULLIF(?,''),title),
+                   vendor=COALESCE(NULLIF(?,''),vendor),
+                   product=COALESCE(NULLIF(?,''),product),
+                   cvss_score=COALESCE(NULLIF(?,''),cvss_score),
+                   severity=?,
+                   release_date=COALESCE(NULLIF(?,''),release_date),
+                   last_updated=COALESCE(NULLIF(?,''),last_updated),
+                   release_year=COALESCE(?,release_year),
+                   release_month=COALESCE(?,release_month),
+                   update_year=COALESCE(?,update_year),
+                   update_month=COALESCE(?,update_month),
+                   cve_year=COALESCE(?,cve_year),
+                   advisory_url=COALESCE(NULLIF(?,''),advisory_url),
+                   sector=COALESCE(NULLIF(?,''),sector),
+                   patch_availability=COALESCE(NULLIF(?,'Unknown'),patch_availability),
+                   poc_availability=COALESCE(NULLIF(?,'Unknown'),poc_availability),
+                   impact=COALESCE(NULLIF(?,''),impact),
+                   affected_version=COALESCE(NULLIF(NULLIF(?,''),'Unknown'),affected_version),
+                   fixed_version=COALESCE(NULLIF(NULLIF(?,''),'Unknown'),fixed_version),
+                   cwe=COALESCE(NULLIF(?,''),cwe),
+                   vendor_hq=COALESCE(NULLIF(?,''),vendor_hq),
+                   product_distribution=COALESCE(NULLIF(?,''),product_distribution),
+                   kev_flag=COALESCE(NULLIF(?,''),kev_flag),
+                   nist_url=COALESCE(NULLIF(?,''),nist_url),
+                   csaf_url=COALESCE(NULLIF(?,''),csaf_url),
+                   data_source=?,
+                   normalized_data=?,
+                   updated_at=?
+                   WHERE id=?""",
+                (record.get("title",""), record.get("affected_vendor",""),
+                 record.get("affected_application",""), record.get("cvss_score",""),
+                 severity,
+                 record.get("release_date",""), record.get("last_updated",""),
+                 release_year, release_month, update_year, update_month, cve_year,
+                 record.get("advisory_url",""), record.get("sector",""),
+                 record.get("patch_availability","Unknown"),
+                 record.get("poc_availability","Unknown"),
+                 record.get("impact",""), affected_version,
+                 fixed_version, record.get("cwe",""),
+                 record.get("vendor_hq",""), record.get("product_distribution",""),
+                 record.get("kev_flag",""),
+                 record.get("nist_url",""), record.get("csaf_url",""),
+                 record.get("data_source","csv"),
+                 normalized, ts, existing["id"])
+            )
+            await self._conn.commit()
+            return existing["id"], False
+        else:
+            cur = await self._conn.execute(
+                """INSERT INTO ics_advisories
+                   (ics_number, cve_id, title, vendor, product, cvss_score, severity,
+                    release_date, last_updated, release_year, release_month, update_year, update_month, cve_year,
+                    advisory_url, sector,
+                    patch_availability, poc_availability, impact,
+                    affected_version, fixed_version, cwe,
+                    vendor_hq, product_distribution, kev_flag, nist_url, csaf_url, data_source,
+                    raw_data, normalized_data, created_at, updated_at)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (ics_number, cve_id,
+                 record.get("title",""), record.get("affected_vendor",""),
+                 record.get("affected_application",""), record.get("cvss_score",""),
+                 severity,
+                 record.get("release_date",""), record.get("last_updated",""),
+                 release_year, release_month, update_year, update_month, cve_year,
+                 record.get("advisory_url",""), record.get("sector",""),
+                 record.get("patch_availability","Unknown"),
+                 record.get("poc_availability","Unknown"),
+                 record.get("impact",""),
+                 affected_version, fixed_version,
+                 record.get("cwe",""), record.get("vendor_hq",""),
+                 record.get("product_distribution",""), record.get("kev_flag",""),
+                 record.get("nist_url",""), record.get("csaf_url",""),
+                 record.get("data_source","csv"),
+                 json.dumps(record), normalized, ts, ts)
+            )
+            await self._conn.commit()
+            return cur.lastrowid, True
+
+    async def backfill_ics_fixed_versions(self) -> int:
+        """Populate fixed_version from affected_version where a version bound exists."""
+        try:
+            async with self._conn.execute(
+                """SELECT id, affected_version, fixed_version, normalized_data
+                   FROM ics_advisories
+                   WHERE affected_version IS NOT NULL AND TRIM(affected_version) != ''"""
+            ) as cur:
+                rows = await cur.fetchall()
+
+            updated = 0
+            for row in rows:
+                if not _is_placeholder_text(row["fixed_version"]):
+                    continue
+                hint = _derive_fixed_version_hint(row["affected_version"])
+                if _is_placeholder_text(hint):
+                    continue
+                normalized_data = row["normalized_data"]
+                if normalized_data:
+                    try:
+                        normalized_obj = json.loads(normalized_data)
+                        if isinstance(normalized_obj, dict):
+                            normalized_obj["fixed_version"] = hint
+                            normalized_data = json.dumps(normalized_obj)
+                    except Exception:
+                        pass
+                await self._conn.execute(
+                    "UPDATE ics_advisories SET fixed_version=?, normalized_data=COALESCE(NULLIF(?,''),normalized_data), updated_at=? WHERE id=?",
+                    (hint, normalized_data or "", now_iso(), row["id"])
+                )
+                updated += 1
+
+            if updated:
+                await self._conn.commit()
+            return updated
+        except Exception as exc:
+            logger.debug("ICS fixed-version backfill skipped: %s", exc)
+            return 0
+
+    @staticmethod
+    def _int_or_none(value: Any) -> Optional[int]:
+        try:
+            if value is None or str(value).strip() == "":
+                return None
+            return int(float(str(value).strip()))
+        except Exception:
+            return None
+
+    @staticmethod
+    def _parse_ics_date_parts(value: Any) -> Tuple[Optional[int], Optional[int]]:
+        text = str(value or "").strip()
+        if not text:
+            return None, None
+        text = text.split("T")[0].replace("\u2013", "-").replace("\u2014", "-")
+        month_names = {
+            "jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
+            "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12,
+        }
+        match = re.match(r"^(\d{4})[-/](\d{1,2})[-/](\d{1,2})", text)
+        if match:
+            return int(match.group(1)), int(match.group(2))
+        match = re.match(r"^(\d{1,2})/(\d{1,2})/(\d{4})", text)
+        if match:
+            return int(match.group(3)), int(match.group(1))
+        match = re.match(r"^([A-Za-z]+)\s+\d{1,2},?\s+(\d{4})", text)
+        if match:
+            month = month_names.get(match.group(1).lower()[:3])
+            return int(match.group(2)), month
+        match = re.match(r"^\d{1,2}\s+([A-Za-z]+),?\s+(\d{4})", text)
+        if match:
+            month = month_names.get(match.group(1).lower()[:3])
+            return int(match.group(2)), month
+        return None, None
+
+    async def get_ics_advisories(
+        self, page=1, page_size=100,
+        year: int = None, month: int = None,
+        severity: str = None, vendor: str = None,
+        search: str = None, cve_id: str = None,
+        filter_mode: str = "advisory",
+    ) -> Dict:
+        """
+        Query the persistent ICS advisory table with safe filtering.
+
+        filter_mode='advisory'      — filter by ICS advisory release date
+                                      (release_year / release_month columns)
+        filter_mode='cve_published' — filter by the official CVE publish date
+                                      from the CVEProject/cvelistV5 GitHub repo
+                                      (cve_pub_year / cve_pub_month columns)
+        """
+        where, params = [], []
+        use_cve_pub = (filter_mode == "cve_published")
+
+        # ── Year / Month filter expressions ──────────────────────────────────
+        # Advisory-release path: parse release_date (M/D/YYYY or YYYY-MM-DD)
+        # falling back to pre-computed release_year/release_month columns.
+        rel_year_expr = """COALESCE(release_year, CAST(
+            CASE
+                WHEN substr(trim(release_date), 5, 1) = '-'
+                    THEN substr(trim(release_date), 1, 4)
+                WHEN instr(trim(release_date), '/') > 0
+                    THEN substr(trim(release_date), length(trim(release_date))-3, 4)
+                ELSE NULL
+            END AS INTEGER))"""
+
+        rel_month_expr = """COALESCE(release_month, CAST(
+            CASE
+                WHEN substr(trim(release_date), 5, 1) = '-'
+                    THEN substr(trim(release_date), 6, 2)
+                WHEN instr(trim(release_date), '/') > 0
+                    THEN substr(trim(release_date), 1, instr(trim(release_date), '/')-1)
+                WHEN lower(substr(trim(release_date), 1, 3)) = 'jan' THEN '1'
+                WHEN lower(substr(trim(release_date), 1, 3)) = 'feb' THEN '2'
+                WHEN lower(substr(trim(release_date), 1, 3)) = 'mar' THEN '3'
+                WHEN lower(substr(trim(release_date), 1, 3)) = 'apr' THEN '4'
+                WHEN lower(substr(trim(release_date), 1, 3)) = 'may' THEN '5'
+                WHEN lower(substr(trim(release_date), 1, 3)) = 'jun' THEN '6'
+                WHEN lower(substr(trim(release_date), 1, 3)) = 'jul' THEN '7'
+                WHEN lower(substr(trim(release_date), 1, 3)) = 'aug' THEN '8'
+                WHEN lower(substr(trim(release_date), 1, 3)) = 'sep' THEN '9'
+                WHEN lower(substr(trim(release_date), 1, 3)) = 'oct' THEN '10'
+                WHEN lower(substr(trim(release_date), 1, 3)) = 'nov' THEN '11'
+                WHEN lower(substr(trim(release_date), 1, 3)) = 'dec' THEN '12'
+                ELSE NULL
+            END AS INTEGER))"""
+
+        # Sort always uses advisory release date for stable ordering.
+        sort_year_expr  = rel_year_expr
+        sort_month_expr = rel_month_expr
+
+        # ── Filters ──────────────────────────────────────────────────────────
+        if year:
+            if use_cve_pub:
+                # CVE Published Date mode: use cve_pub_year from cvelistV5 zip
+                where.append("(cve_pub_year = ?)")
+            else:
+                # Advisory Release Date mode: use ICS advisory release_year
+                where.append(f"({rel_year_expr} = ?)")
+            params.append(int(year))
+
+        if month:
+            if use_cve_pub:
+                # CVE Published Date mode: use cve_pub_month from cvelistV5 zip
+                where.append("(cve_pub_month = ?)")
+            else:
+                # Advisory Release Date mode: use ICS advisory release_month
+                where.append(f"({rel_month_expr} = ?)")
+            params.append(int(month))
+
+        if severity:
+            where.append("LOWER(severity) = LOWER(?)")
+            params.append(severity)
+
+        if vendor:
+            where.append("LOWER(vendor) LIKE LOWER(?)")
+            params.append(f"%{vendor}%")
+
+        if cve_id and not search:
+            where.append("LOWER(cve_id) LIKE LOWER(?)")
+            params.append(f"%{cve_id}%")
+
+        if search:
+            where.append(
+                "(LOWER(title) LIKE LOWER(?) OR LOWER(vendor) LIKE LOWER(?) "
+                "OR LOWER(product) LIKE LOWER(?) OR LOWER(cve_id) LIKE LOWER(?) "
+                "OR LOWER(ics_number) LIKE LOWER(?))"
+            )
+            params += [f"%{search}%"] * 5
+
+        ws  = ("WHERE " + " AND ".join(where)) if where else ""
+        off = (page - 1) * page_size
+
+        sort_expr = (
+            f"printf('%04d-%02d-01', COALESCE({sort_year_expr}, 0),"
+            f" COALESCE({sort_month_expr}, 0))"
+        )
+
+        try:
+            async with self._conn.execute(f"SELECT COUNT(*) FROM ics_advisories {ws}", params) as cur:
+                total_row = await cur.fetchone()
+                total = total_row[0] if total_row else 0
+
+            async with self._conn.execute(
+                f"SELECT * FROM ics_advisories {ws} ORDER BY {sort_expr} DESC, ics_number DESC LIMIT ? OFFSET ?",
+                params + [page_size, off]
+            ) as cur:
+                rows = await cur.fetchall()
+
+            return {
+                "total": total,
+                "page": page,
+                "page_size": page_size,
+                "items": [dict(r) for r in rows],
+                "filter_mode": filter_mode,
+            }
+        except Exception as e:
+            logger.error("ICS advisory query failed: %s", e)
+            return {"total": 0, "page": page, "page_size": page_size, "items": [], "error": str(e)}
+
+
+    async def get_ics_meta(self) -> Dict:
+        """
+        Return years, months, severities, vendors and total count from stored
+        ICS advisories.  Returns two sets of year/month options:
+          - years / months           — based on ICS advisory release date
+          - cve_pub_years / cve_pub_months — based on CVE publish date from cvelistV5
+        """
+        total = await self._query_val("SELECT COUNT(*) FROM ics_advisories")
+        vendors = await self._query_list(
+            "SELECT DISTINCT vendor FROM ics_advisories WHERE vendor != '' ORDER BY vendor LIMIT 300"
+        )
+        sevs = await self._query_list(
+            "SELECT severity, COUNT(*) as cnt FROM ics_advisories GROUP BY severity"
+        )
+        month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+        # ── Advisory release year/month ──────────────────────────────────────
+        adv_rows = await self._query_list(
+            """SELECT DISTINCT release_year, release_month
+               FROM ics_advisories
+               WHERE release_year IS NOT NULL AND release_month IS NOT NULL"""
+        )
+        adv_year_set  = set()
+        adv_month_set = set()
+        for row in adv_rows:
+            y = self._int_or_none(row.get("release_year"))
+            m = self._int_or_none(row.get("release_month"))
+            if y and y > 1990: adv_year_set.add(y)
+            if m and 1 <= m <= 12: adv_month_set.add(m)
+
+        # ── CVE published year/month (from cvelistV5 enrichment) ─────────────
+        pub_rows = await self._query_list(
+            """SELECT DISTINCT cve_pub_year, cve_pub_month
+               FROM ics_advisories
+               WHERE cve_pub_year IS NOT NULL AND cve_pub_month IS NOT NULL"""
+        )
+        pub_year_set  = set()
+        pub_month_set = set()
+        for row in pub_rows:
+            y = self._int_or_none(row.get("cve_pub_year"))
+            m = self._int_or_none(row.get("cve_pub_month"))
+            if y and y > 1990: pub_year_set.add(y)
+            if m and 1 <= m <= 12: pub_month_set.add(m)
+
+        # Count how many rows have been enriched from cvelist
+        enriched_count = await self._query_val(
+            "SELECT COUNT(*) FROM ics_advisories WHERE cvelist_status='done'"
+        ) or 0
+
+        return {
+            "total": total or 0,
+            # Advisory release date filter options
+            "years":  sorted(adv_year_set,  reverse=True),
+            "months": [[m, month_names[m-1]] for m in sorted(adv_month_set)],
+            # CVE published date filter options (from cvelistV5)
+            "cve_pub_years":  sorted(pub_year_set,  reverse=True),
+            "cve_pub_months": [[m, month_names[m-1]] for m in sorted(pub_month_set)],
+            "cvelist_enriched": enriched_count,
+            "vendors":    [r["vendor"] for r in vendors],
+            "by_severity": sevs,
+        }
+
+    # ── Status History (uptime logging for all monitored infra) ─────────────────
+
+    async def add_status_history(
+        self,
+        target_type: str,
+        target_id: int,
+        name: str,
+        url: str,
+        status: str,
+        latency_ms: Optional[int] = None
+    ) -> int:
+        """
+        Log a single uptime check for any monitored target.
+        target_type: 'onion_site' | 'breach_market' | 'dls'
+        status: HTTP status code string, 'online', 'offline', 'timeout', etc.
+        """
+        try:
+            cur = await self._retry_execute(
+                """INSERT INTO status_history
+                   (target_type, target_id, name, url, status, latency_ms, timestamp)
+                   VALUES (?,?,?,?,?,?,?)""",
+                (target_type, target_id, name, url, status, latency_ms, now_iso()),
+                max_retries=3
+            )
+            await self._retry_commit(max_retries=3)
+            return cur.lastrowid
+        except Exception as e:
+            logger.debug(f"Failed to add status history: {e}")
+            return 0
+
+    async def get_status_history(
+        self,
+        target_type: str = None,
+        target_id: int = None,
+        name: str = None,
+        limit: int = 500,
+        hours: int = None
+    ) -> List[Dict]:
+        """
+        Retrieve uptime history for pattern analysis.
+        Can filter by target_type, target_id, name, or a time window.
+        """
+        where, params = [], []
+        if target_type:
+            where.append("target_type=?")
+            params.append(target_type)
+        if target_id is not None:
+            where.append("target_id=?")
+            params.append(target_id)
+        if name:
+            where.append("name LIKE ?")
+            params.append(f"%{name}%")
+        if hours:
+            where.append("timestamp >= datetime('now',?)")
+            params.append(f"-{hours} hours")
+        ws = ("WHERE " + " AND ".join(where)) if where else ""
+        async with self._conn.execute(
+            f"SELECT * FROM status_history {ws} ORDER BY timestamp DESC LIMIT ?",
+            params + [limit]
+        ) as cur:
+            rows = await cur.fetchall()
+        return [dict(r) for r in rows]
+
+    async def get_uptime_summary(
+        self,
+        target_type: str = None,
+        hours: int = 168  # last 7 days by default
+    ) -> List[Dict]:
+        """
+        Returns per-target uptime summary: total checks, online count, offline count.
+        Useful for dashboards showing uptime % over time.
+        """
+        where, params = ["timestamp >= datetime('now',?)"], [f"-{hours} hours"]
+        if target_type:
+            where.append("target_type=?")
+            params.append(target_type)
+        ws = "WHERE " + " AND ".join(where)
+        rows = await self._query_list(
+            f"""SELECT
+                   target_type, target_id, name, url,
+                   COUNT(*) as total_checks,
+                   SUM(CASE WHEN status IN ('200','online') THEN 1 ELSE 0 END) as online_count,
+                   SUM(CASE WHEN status NOT IN ('200','online') THEN 1 ELSE 0 END) as offline_count,
+                   MAX(timestamp) as last_check,
+                   MIN(timestamp) as first_check
+               FROM status_history {ws}
+               GROUP BY target_type, target_id
+               ORDER BY name ASC""",
+        )
+        # Compute uptime_pct
+        for r in rows:
+            t = r.get("total_checks") or 1
+            r["uptime_pct"] = round(100.0 * r.get("online_count", 0) / t, 1)
+        return rows
+
+    # ── HIBR Searches ─────────────────────────────────────────────────────────────
+
+    async def get_hibr_search(self, query: str, query_type: str) -> Optional[Dict]:
+        """Get cached HIBR search results."""
+        async with self._conn.execute(
+            "SELECT results_json, updated_at FROM hibr_searches WHERE query=? AND query_type=?",
+            (query, query_type)
+        ) as cur:
+            rows = await cur.fetchall()
+        if not rows:
+            return None
+        import json
+        try:
+            res = json.loads(rows[0]["results_json"])
+            res["_cached_at"] = rows[0]["updated_at"]
+            return res
+        except Exception as e:
+            logger.error("Failed to parse cached HIBR search: %s", e)
+            return None
+
+    async def save_hibr_search(self, query: str, query_type: str, results_json: str) -> None:
+        """Save or update HIBR search results."""
+        try:
+            await self._retry_execute(
+                """INSERT INTO hibr_searches (query, query_type, results_json, updated_at)
+                   VALUES (?, ?, ?, datetime('now'))
+                   ON CONFLICT(query, query_type) DO UPDATE SET
+                   results_json = excluded.results_json,
+                   updated_at = excluded.updated_at
+                """,
+                (query, query_type, results_json),
+                max_retries=3
+            )
+            await self._retry_commit(max_retries=3)
+        except Exception as e:
+            logger.error("Failed to save HIBR search cache: %s", e)

@@ -49,7 +49,7 @@ class GitHubIntelConnector(BaseConnector):
     def _headers(self) -> Dict[str, str]:
         headers = {
             "Accept": "application/vnd.github.v3+json",
-            "User-Agent": "CyberXTron-TIP/1.0",
+            "User-Agent": "ThreatIntel-TIP/1.0",
         }
         if self._token:
             headers["Authorization"] = f"token {self._token}"

@@ -1,5 +1,5 @@
 """
-engine/ai_analyst.py — CyberXTron AI Analyst
+engine/ai_analyst.py — ThreatIntel AI Analyst
 Powered by Claude (Anthropic API) via direct HTTP.
 Provides: IOC analysis, threat actor profiling, advisory generation, dark web analysis.
 No SDK required — pure aiohttp HTTP calls to api.anthropic.com
@@ -20,7 +20,7 @@ MODEL = "claude-sonnet-4-20250514"
 
 class AIAnalyst:
     """
-    CyberXTron's embedded AI analyst.
+    ThreatIntel's embedded AI analyst.
     Wraps Claude API to deliver threat intelligence context,
     IOC analysis, actor profiles, and structured advisories.
     """
@@ -90,7 +90,7 @@ class AIAnalyst:
         last_seen = context.get("last_seen", "")
         tags = context.get("tags", [])
 
-        system = """You are a senior threat intelligence analyst at CyberXTron, a cybersecurity firm.
+        system = """You are a senior threat intelligence analyst at ThreatIntel, a cybersecurity firm.
 You specialize in IOC analysis, malware attribution, and threat actor tracking.
 Provide concise, actionable, structured intelligence — like a Mandiant or CrowdStrike report.
 Always respond in valid JSON with no extra text or markdown fences."""
@@ -152,7 +152,7 @@ Respond ONLY with this exact JSON structure (no markdown, no extra text):
     ) -> Dict:
         """Generate a comprehensive threat actor intelligence profile."""
 
-        system = """You are a senior CTI analyst at CyberXTron. You write detailed, accurate
+        system = """You are a senior CTI analyst at ThreatIntel. You write detailed, accurate
 threat actor profiles based on open-source intelligence, similar to those published by
 CrowdStrike, Mandiant, or Recorded Future. Respond ONLY in valid JSON."""
 
@@ -198,7 +198,7 @@ Respond ONLY with this JSON (no markdown, no extra text):
   "intelligence_gaps": "What is unknown about this actor",
   "detection_recommendations": ["rec1", "rec2", "rec3"],
   "threat_level": "critical|high|medium|low",
-  "analyst_assessment": "CyberXTron analyst assessment and outlook"
+  "analyst_assessment": "ThreatIntel analyst assessment and outlook"
 }}"""
 
         raw = await self._call(
@@ -231,7 +231,7 @@ Respond ONLY with this JSON (no markdown, no extra text):
         Generate a full structured threat advisory / intelligence report.
         advisory_type: 'weekly_summary' | 'threat_actor' | 'malware_analysis' | 'incident_advisory'
         """
-        system = """You are a senior threat intelligence analyst at CyberXTron, a Chennai-based
+        system = """You are a senior threat intelligence analyst at ThreatIntel, a Chennai-based
 cybersecurity firm. You write professional, actionable threat advisories similar to those
 published by CrowdStrike, Mandiant, or CERT-In. Your reports are used by security teams
 and executives. Write in clear, professional English. Use proper markdown formatting.
@@ -269,7 +269,7 @@ Be specific and technical — not generic. Include real IOC examples from the co
             for i in high_conf_iocs[:15]
         )
 
-        return f"""Write a professional weekly threat intelligence advisory for CyberXTron clients.
+        return f"""Write a professional weekly threat intelligence advisory for ThreatIntel clients.
 
 PLATFORM DATA (Last {days} days):
 - Total IOCs: {stats.get('total_iocs', 0)}
@@ -287,7 +287,7 @@ HIGH-CONFIDENCE IOCs:
 {ioc_text or 'No high-confidence IOCs in period'}
 
 Write a comprehensive advisory with these exact sections:
-# CyberXTron Weekly Threat Intelligence Advisory
+# ThreatIntel Weekly Threat Intelligence Advisory
 ## Classification: TLP:AMBER | {days}-Day Reporting Window
 
 ## Executive Summary
@@ -315,7 +315,7 @@ Write a comprehensive advisory with these exact sections:
 (Key techniques observed this period)
 
 ---
-*CyberXTron Threat Intelligence | Chennai, India | TLP:AMBER*"""
+*ThreatIntel Threat Intelligence | Chennai, India | TLP:AMBER*"""
 
     def _build_actor_prompt(self, ctx: Dict) -> str:
         actor = ctx.get("threat_actor", "Unknown")
@@ -349,7 +349,7 @@ Target Industries: {', '.join(industries[:8]) or 'Unknown'}
 
 Write a comprehensive threat actor intelligence report with:
 # Threat Actor Intelligence Report: {actor}
-## CyberXTron TIP | Classification: TLP:AMBER
+## ThreatIntel TIP | Classification: TLP:AMBER
 
 ## Actor Overview
 (Origins, classification, motivation, current status)
@@ -382,7 +382,7 @@ Write a comprehensive threat actor intelligence report with:
 (Specific to this actor's TTPs)
 
 ---
-*CyberXTron Threat Intelligence | Classification: TLP:AMBER*"""
+*ThreatIntel Threat Intelligence | Classification: TLP:AMBER*"""
 
     def _build_malware_prompt(self, ctx: Dict) -> str:
         malware = ctx.get("malware_family", "Unknown")
@@ -408,7 +408,7 @@ Write a technical malware intelligence report with:
 ## MITRE ATT&CK Mapping
 ## Remediation Steps
 
-*CyberXTron Threat Intelligence | TLP:AMBER*"""
+*ThreatIntel Threat Intelligence | TLP:AMBER*"""
 
     def _build_incident_prompt(self, ctx: Dict) -> str:
         title = ctx.get("title", "Security Incident")
@@ -434,7 +434,7 @@ Write a threat advisory with:
 ## Detection Rules
 ## References
 
-*CyberXTron Threat Intelligence | TLP:AMBER*"""
+*ThreatIntel Threat Intelligence | TLP:AMBER*"""
 
     # ─────────────────────────────────────────────────────────────────────────
     # Dark Web Analysis
@@ -442,7 +442,7 @@ Write a threat advisory with:
 
     async def analyze_dark_web_post(self, content: str, source: str, group: str) -> Dict:
         """Analyze a dark web leak post and extract structured intelligence."""
-        system = """You are a dark web intelligence analyst at CyberXTron.
+        system = """You are a dark web intelligence analyst at ThreatIntel.
 You analyze ransomware leak site posts, breach forum posts, and dark web marketplace listings.
 Extract structured intelligence. Respond ONLY in valid JSON."""
 

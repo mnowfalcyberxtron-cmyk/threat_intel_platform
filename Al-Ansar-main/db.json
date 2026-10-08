@@ -1,0 +1,29 @@
+{
+  "settings": {
+    "telegramBotToken": "8620199079:AAHGQXTAwox7fMgFkoncI3k9F-8RGaili4c",
+    "telegramChatId": "1262627182",
+    "dailyReportTime": "21:00",
+    "stockAlertLevel": 25,
+    "sellingPrice": 290,
+    "conversionRatio": 1.5
+  },
+  "inventory": {
+    "liveAvailable": 0,
+    "cleanedAvailable": 0
+  },
+  "vendors": [],
+  "purchases": [],
+  "payments": [],
+  "sales": [],
+  "expenses": [],
+  "dailyOpenings": [],
+  "dailyClosings": [],
+  "auditLogs": [
+    {
+      "id": "al_init",
+      "action": "Database Fresh Reset",
+      "details": "All mock and demo data removed by user request for freshly starting the store ledger.",
+      "timestamp": "2026-07-20T20:50:00.000Z"
+    }
+  ]
+}

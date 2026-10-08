@@ -1,6 +1,6 @@
 
 /* ═══════════════════════════════════════════════════════════
-   CyberXTron TIP v2 — Dashboard with AI Integration
+   ThreatIntel TIP v2 — Dashboard with AI Integration
    No external redirects. All analysis is local.
 ═══════════════════════════════════════════════════════════ */
 
@@ -11,7 +11,7 @@ const COLORS=['#00d4ff','#388bfd','#bc8cff','#3fb950','#d29922','#db6d28','#f851
 async function api(path,opts={}){
   try{
     opts.headers = opts.headers || {};
-    const storedKeys = localStorage.getItem('cyberxtron_keys');
+    const storedKeys = localStorage.getItem('threatintel_keys');
     if (storedKeys) opts.headers['X-API-Keys'] = storedKeys;
     const r=await fetch(path,opts);
     let data=null; try { data=await r.json(); } catch(e){}
@@ -359,7 +359,7 @@ async function openIOCModal(iocId){
 async function loadIOCAI(iocId){
   const c=document.getElementById('ioc-ai-content');
   if(c.dataset.loaded===String(iocId))return;
-  c.innerHTML='<div class="ai-loading"><span class="spinner"></span> Analyzing with CyberXTron AI...</div>';
+  c.innerHTML='<div class="ai-loading"><span class="spinner"></span> Analyzing with ThreatIntel AI...</div>';
   const data=await api(`/api/ai/analyze/ioc/${iocId}`);
   c.dataset.loaded=String(iocId);
   c.innerHTML=data?.analysis?mdToHTML(data.analysis):'<div style="color:var(--yellow)">AI analysis unavailable — configure AI provider in .env</div>';
@@ -545,7 +545,7 @@ async function genAdvisory(){
   if(type!=='advisory'&&!actor){toast('Enter actor/group name','err');return;}
   const btn=document.getElementById('adv-btn');
   btn.textContent='✦ Generating...';btn.disabled=true;
-  document.getElementById('rep-viewer').innerHTML='<div class="ai-loading" style="font-size:13px;padding:30px"><span class="spinner"></span> CyberXTron AI is analyzing your threat intelligence database...</div>';
+  document.getElementById('rep-viewer').innerHTML='<div class="ai-loading" style="font-size:13px;padding:30px"><span class="spinner"></span> ThreatIntel AI is analyzing your threat intelligence database...</div>';
 
   let data;
   if(type==='advisory'){
@@ -1538,7 +1538,7 @@ async function caRefresh(){
 async function genCoreReport(){
   const section = document.getElementById('core-report-section');
   section.style.display = 'block';
-  document.getElementById('core-report-content').innerHTML = '<div class="ai-loading"><span class="spinner"></span> Generating CyberXTron FinalFeed Core Threat Report...</div>';
+  document.getElementById('core-report-content').innerHTML = '<div class="ai-loading"><span class="spinner"></span> Generating ThreatIntel FinalFeed Core Threat Report...</div>';
   section.scrollIntoView({behavior:'smooth'});
   const data = await api('/api/advisory/core-threat-report');
   document.getElementById('core-report-content').innerHTML = data?.report ? mdToHTML(data.report) : '<div style="color:var(--yellow)">AI not configured or no data yet</div>';

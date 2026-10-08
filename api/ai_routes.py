@@ -1,5 +1,5 @@
 """
-api/ai_routes.py — AI analysis endpoints for CyberXTron TIP v2
+api/ai_routes.py — AI analysis endpoints for ThreatIntel TIP v2
 All analysis is done locally via configured AI provider — no external redirects.
 """
 
@@ -50,7 +50,7 @@ async def analyze_ioc(ioc_id: int):
     for field in ("sources", "tags", "raw_data"):
         if isinstance(ioc.get(field), str):
             try: ioc[field] = json.loads(ioc[field])
-            except: ioc[field] = []
+            except Exception: ioc[field] = []
     analysis = await ai.analyze_ioc(ioc)
     return {"ioc_id": ioc_id, "ioc": ioc, "analysis": analysis}
 
@@ -126,7 +126,7 @@ async def generate_advisory(req: AdvisoryRequest):
     cves = [i["ioc"] for i in high_iocs if i.get("ioc_type")=="cve"][:8]
     threat_data = {
         "type": "Weekly Threat Advisory",
-        "title": req.title or f"CyberXTron Threat Advisory — {datetime.now(timezone.utc).strftime('%Y-%m-%d')}",
+        "title": req.title or f"ThreatIntel Threat Advisory — {datetime.now(timezone.utc).strftime('%Y-%m-%d')}",
         "period": f"Last {req.days} days",
         "total_iocs": stats.get("total_iocs", 0),
         "high_conf_iocs": stats.get("high_confidence_iocs", 0),
@@ -187,9 +187,11 @@ async def select_provider(req: ProviderSelectRequest):
     if provider not in valid:
         raise HTTPException(status_code=400, detail=f"Invalid provider. Choose from: {valid}")
     settings.AI_PROVIDER = provider
+    settings._last_used_provider = provider
     ai = get_ai()
     if ai:
         ai.provider = provider
+        ai._last_used_provider = provider
     logger.info("AI provider manually switched to: %s", provider)
     return {"status": "success", "provider": provider, "message": f"AI provider set to {provider.upper()}"}
 

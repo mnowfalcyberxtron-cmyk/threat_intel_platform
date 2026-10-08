@@ -1,5 +1,5 @@
 """
-api/app.py — FastAPI application for CyberXTron TIP.
+api/app.py — FastAPI application for ThreatIntel TIP.
 All routes: stats, IOCs, victims, alerts, reports, source status, logs.
 """
 

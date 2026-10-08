@@ -41,6 +41,7 @@ class DarkWebConnector(BaseConnector):
     def __init__(self, db: Optional[Database] = None):
         super().__init__()
         self.db = db
+        self._tor_proxy_url = ""
 
     async def fetch(self) -> List[Dict[str, Any]]:
         if not settings.ENABLE_DARKWEB:
@@ -62,6 +63,10 @@ class DarkWebConnector(BaseConnector):
         # Get sites to monitor: from DB if available, else fallback to config
         monitored_sites = []
         if self.db:
+            try:
+                await self.db.sync_discovered_onions()
+            except Exception as exc:
+                self.logger.debug("Dark web onion sync skipped: %s", exc)
             db_sites = await self.db.get_all_onion_sites(active_only=True)
             for s in db_sites:
                 monitored_sites.append({"group": s["group_name"], "url": s["url"]})
@@ -96,42 +101,44 @@ class DarkWebConnector(BaseConnector):
         return results
 
     async def _verify_tor(self) -> bool:
-        """Quick connectivity check via Tor SOCKS5."""
+        """Quick connectivity check via Tor."""
         try:
-            proxy = f"socks5://{settings.TOR_SOCKS_HOST}:{settings.TOR_SOCKS_PORT}"
-            connector = ProxyConnector.from_url(proxy)
-            timeout = aiohttp.ClientTimeout(total=15)
-            async with aiohttp.ClientSession(connector=connector, timeout=timeout) as sess:
-                async with sess.get("https://check.torproject.org/api/ip") as resp:
-                    if resp.status == 200:
-                        data = await resp.json()
-                        if data.get("IsTor"):
-                            self.logger.info("Tor verified: %s", data.get("IP","?"))
-                            return True
+            from utils.tor_manager import ensure_tor_proxy
+
+            tor = await ensure_tor_proxy(settings.TOR_SOCKS_HOST, settings.TOR_SOCKS_PORT)
+            if tor.get("ok"):
+                self._tor_proxy_url = tor["proxy_url"]
+                self.logger.info("Tor verified: %s via %s", tor.get("exit_ip", "?"), self._tor_proxy_url)
+                return True
+            self.logger.warning("Tor verification failed: %s", tor.get("error", "unknown error"))
         except Exception as e:
-            self.logger.error("Tor check failed at %s:%d: %s", settings.TOR_SOCKS_HOST, settings.TOR_SOCKS_PORT, e)
-            
+            self.logger.debug("Tor check failed: %s", e)
         return False
 
     async def _fetch_onion(self, url: str) -> Optional[str]:
-        proxy = f"socks5://{settings.TOR_SOCKS_HOST}:{settings.TOR_SOCKS_PORT}"
+        proxy = self._tor_proxy_url
+        if not proxy:
+            from utils.tor_manager import ensure_tor_proxy
+
+            tor = await ensure_tor_proxy(settings.TOR_SOCKS_HOST, settings.TOR_SOCKS_PORT)
+            if not tor.get("ok"):
+                self.logger.warning("Cannot fetch onion without verified Tor: %s", tor.get("error"))
+                return None
+            proxy = tor["proxy_url"]
+            self._tor_proxy_url = proxy
         try:
-            connector = ProxyConnector.from_url(proxy)
-            timeout = aiohttp.ClientTimeout(total=45)
+            connector = ProxyConnector.from_url(proxy, rdns=True)
+            timeout = aiohttp.ClientTimeout(total=60, connect=20, sock_read=45)
             headers = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; rv:109.0) Gecko/20100101 Firefox/115.0",
                 "Accept": "text/html,application/xhtml+xml,*/*",
                 "Accept-Language": "en-US,en;q=0.5",
             }
-            
-            full_url = url if url.startswith("http") else f"http://{url}"
-                
             async with aiohttp.ClientSession(connector=connector, timeout=timeout) as sess:
-                async with sess.get(full_url, headers=headers, allow_redirects=True) as resp:
+                async with sess.get(url, headers=headers, allow_redirects=True, ssl=False) as resp:
                     if resp.status == 200:
-                        raw_bytes = await resp.read()
-                        return raw_bytes.decode('utf-8', errors='replace')
-                    self.logger.debug("HTTP %d from %s", resp.status, full_url[:50])
+                        return await resp.text(errors="ignore")
+                    self.logger.debug("HTTP %d from %s", resp.status, url[:50])
         except asyncio.TimeoutError:
             self.logger.debug("Timeout: %s", url[:50])
         except Exception as e:

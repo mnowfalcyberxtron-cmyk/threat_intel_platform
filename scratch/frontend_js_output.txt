@@ -1,0 +1,151 @@
+3150:         </div>
+3151:     </div>`;
+3152: }
+3153: 
+3154: function askAIAboutFeedItem(btnOrTitle, summary) {
+3155:     let title = btnOrTitle;
+3156:     let summ = summary;
+3157:     if (btnOrTitle instanceof HTMLElement) {
+3158:         title = btnOrTitle.getAttribute('data-title');
+3159:         summ = btnOrTitle.getAttribute('data-summary');
+3160:     }
+3161: 
+3162:   // Switch to AI chat tab and pre-fill with context
+3163:   nav('chat', document.querySelector('[data-view=chat]'));
+3164:   setTimeout(()=>{
+3165:     const inp = document.getElementById('chat-in');
+3166:     if(inp){
+3167:       inp.value = `Analyze this threat intelligence item and provide detailed context:
+3168: 
+3169: Title: ${title}
+3170: 
+3171: Summary: ${summary}
+3172: 
+3173: Who are the threat actors involved? What malware/TTPs are referenced? What are the defensive implications?`;
+3174:       inp.focus();
+3175:     }
+3176:   }, 200);
+3177: }
+3178: 
+3179: 
+3180: // ── Company Advisories ────────────────────────────────────────────────────────
+3181: let icsPage = 1, icsMetaLoaded = false, icsSources = [];
+3182: let currentAdvId = null;
+3183: 
+3184: async function loadIcsMeta(force=false){
+3185:   if(icsMetaLoaded && !force) return;
+3186:   const meta = await api('/api/advisory/ics/meta');
+3187:   if(!meta) return;
+3188:   icsSources = meta.sources || [];
+3189:   const yearSel = document.getElementById('ics-year');
+3190:   const monthSel = document.getElementById('ics-month');
+3191:   const sevSel = document.getElementById('ics-severity');
+3192:   const oldYear = yearSel?.value || '';
+3193:   const oldMonth = monthSel?.value || '';
+3194:   const oldSev = sevSel?.value || '';
+3195: 
+3196:   if(yearSel){
+3197:     yearSel.innerHTML = '<option value="">All Years</option>' + (meta.years||[]).map(y=>`<option value="${esc(y)}">${esc(y)}</option>`).join('');
+3198:     yearSel.value = oldYear;
+3199:   }
+3200:   if(monthSel){
+3201:     monthSel.innerHTML = '<option value="">All Months</option>' + (meta.months||[]).map(m=>`<option value="${esc(m[0])}">${esc(m[1])}</option>`).join('');
+3202:     monthSel.value = oldMonth;
+3203:   }
+3204:   if(sevSel){
+3205:     sevSel.innerHTML = '<option value="">All Severities</option>' + (meta.severities||[]).map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
+3206:     sevSel.value = oldSev;
+3207:   }
+3208:   icsMetaLoaded = true;
+3209: }
+3210: 
+3211: function renderIcsCveRows(items){
+3212:   if(!items.length) return '<tr><td colspan="11" style="text-align:center;padding:18px;background:#fff;color:#475569">No CVE rows found</td></tr>';
+3213:   return items.map(r=>{
+3214:     const sev = (r.cvss_severity||'').toLowerCase();
+3215:     const sevCls = sev ? `ics-sev-${sev}` : '';
+3216:     const cve = r.advisory_url ? `<a href="${esc(r.advisory_url)}" target="_blank">${esc(r.cve_id||'N/A')}</a>` : esc(r.cve_id||'N/A');
+3217:     return `<tr>
+3218:       <td>${cve}</td>
+3219:       <td>${esc(r.title||'N/A')}</td>
+3220:       <td>${esc(r.patch_availability||'Unknown')}</td>
+3221:       <td>${esc(r.poc_availability||'Unknown')}</td>
+3222:       <td>${esc(r.impact||'Unknown')}</td>
+3223:       <td style="text-align:center;font-weight:700">${esc(r.cvss_score||'N/A')}</td>
+3224:       <td class="${sevCls}" style="text-align:center">${esc(r.cvss_severity||'N/A')}</td>
+3225:       <td>${esc(r.affected_vendor||'N/A')}</td>
+3226:       <td>${esc(r.affected_application||'N/A')}</td>
+3227:       <td>${esc(r.affected_version||'See Advisory')}</td>
+3228:       <td>${esc(r.fixed_version||'N/A')}</td>
+3229:     </tr>`;
+3230:   }).join('');
+3231: }
+3232: 
+3233: async function loadIcsCves(page=1){
+3234:   const body = document.getElementById('ics-cve-body');
+3235:   if(!body) return;
+3236:   icsPage = page;
+3237:   await loadIcsMeta();
+3238:   body.innerHTML = '<tr><td colspan="11" class="lrow" style="background:#fff;color:#475569"><span class="spinner"></span></td></tr>';
+3239: 
+3240:   const params = new URLSearchParams({page, page_size:50});
+3241:   const year = document.getElementById('ics-year')?.value || '';
+3242:   const month = document.getElementById('ics-month')?.value || '';
+3243:   const severity = document.getElementById('ics-severity')?.value || '';
+3244:   const search = document.getElementById('ics-search')?.value || '';
+3245:   if(year) params.set('year', year);
+3246:   if(month) params.set('month', month);
+3247:   if(severity) params.set('severity', severity);
+3248:   if(search) params.set('search', search);
+3249: 
+3250:   const data = await api('/api/advisory/ics?' + params);
+3251:   const items = data?.items || [];
+3252:   body.innerHTML = renderIcsCveRows(items);
+3253:   const count = document.getElementById('ics-cve-count');
+3254:   if(count) count.textContent = `${fmt(data?.total||0)} CVE rows`;
+3255:   const source = document.getElementById('ics-cve-source');
+3256:   if(source) source.textContent = (icsSources.includes('rapidapi') ? 'RapidAPI + bulk dataset' : 'Bulk dataset') + ' | Year = CVE-ID, Month = ICS update';
+3257:   paginate('ics-cve-pager', data?.total || 0, page, data?.page_size || 50, p => loadIcsCves(p));
+3258: }
+3259: 
+3260: async function refreshIcsCves(){
+3261:   toast('Refreshing ICS CVE data...', 'info');
+3262:   icsMetaLoaded = false;
+3263:   await api('/api/advisory/ics/refresh');
+3264:   await loadIcsMeta(true);
+3265:   await loadIcsCves(1);
+3266: }
+3267: 
+3268: // The 25 monitored companies (must match advisory_monitor connector)
+3269: const TOP25_COMPANIES = [
+3270:   'Microsoft', 'Google', 'Fortinet', 'Cisco', 'Apple',
+3271:   'Amazon/AWS', 'IBM', 'Oracle', 'Palo Alto Networks', 'Check Point',
+3272:   'Adobe', 'VMware', 'Intel', 'Qualcomm', 'Trend Micro',
+3273:   'Kaspersky', 'CrowdStrike', 'Mandiant', 'Sophos', 'SentinelOne',
+3274:   'F5 Networks', 'Akamai', 'ESET', 'Samsung', 'HP/HPE'
+3275: ];
+3276: 
+3277: async function loadAdvisories(){
+3278:   const company  = document.getElementById('ca-company')?.value||'';
+3279:   const severity = document.getElementById('ca-sev')?.value||'';
+3280:   const atype    = document.getElementById('ca-adv-type')?.value||'';
+3281:   const hours    = document.getElementById('ca-hours')?.value||'720';
+3282:   const search   = document.getElementById('ca-search')?.value||'';
+3283: 
+3284:   const c = document.getElementById('ca-list-container');
+3285:   if(c) c.innerHTML = '<div class="lrow"><span class="spinner"></span></div>';
+3286:   loadIcsCves(icsPage || 1);
+3287: 
+3288:   // Load stats
+3289:   const stats = await api('/api/advisory/stats');
+3290:   if(stats){
+3291:     const sr = document.getElementById('ca-stats-row');
+3292:     const totalAdv = (stats.by_severity||[]).reduce((s,x)=>s+x.cnt,0);
+3293:     const critCount = (stats.by_severity||[]).find(x=>x.severity==='critical')?.cnt||0;
+3294:     const highCount = (stats.by_severity||[]).find(x=>x.severity==='high')?.cnt||0;
+3295:     if(sr) sr.innerHTML = [
+3296:       ['Total Advisories', totalAdv, 'c-cyan'],
+3297:       ['Critical', critCount, 'c-red'],
+3298:       ['High', highCount, 'c-orange'],
+3299:       ['Today', stats.today||0, 'c-purple'],
+3300:     ].map(([label,val,cls])=>`<div class="stat-card ${cls}" style="padding:10px">

@@ -16,10 +16,10 @@ class ThreatFoxConnector(BaseConnector):
     API_URL = "https://threatfox-api.abuse.ch/api/v1/"
 
     async def fetch(self) -> List[Dict[str, Any]]:
-        headers = {"Content-Type": "application/json", "User-Agent": "CyberXTron-TIP/2.2"}
+        headers = {"Content-Type": "application/json", "User-Agent": "ThreatIntel-TIP/2.2"}
         api_key = getattr(settings, "THREATFOX_API_KEY", None)
         if api_key:
-            headers["API-KEY"] = api_key
+            headers["Auth-Key"] = api_key
 
         for days in [1, 3]:
             data = await self._post(self.API_URL,

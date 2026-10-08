@@ -97,10 +97,10 @@ class BaseConnector(ABC):
                         self.logger.warning("Rate limited %s — waiting %ds", url[:60], wait)
                         await asyncio.sleep(wait)
                     elif resp.status in (401, 403):
-                        self.logger.warning("HTTP %d (Access Denied) from %s — possible bot detection", resp.status, url[:80])
+                        self.logger.debug("HTTP %d (Access Denied) from %s — possible bot detection", resp.status, url[:80])
                         return None
                     elif resp.status == 404:
-                        self.logger.warning("HTTP 404 (Not Found) from %s", url[:80])
+                        self.logger.debug("HTTP 404 (Not Found) from %s", url[:80])
                         return None
                     else:
                         self.logger.warning("HTTP %d from %s", resp.status, url[:80])
@@ -125,7 +125,7 @@ class BaseConnector(ABC):
                     self.logger.error("SSL fallback failed: %s", e2)
                 return None
             except Exception as e:
-                self.logger.error("GET %s: %s", url[:60], e)
+                self.logger.warning("GET %s: %s", url[:60], e)
             if attempt < settings.MAX_RETRIES - 1:
                 await asyncio.sleep(2 ** attempt)
         return None
@@ -148,7 +148,7 @@ class BaseConnector(ABC):
                     elif resp.status == 429:
                         await asyncio.sleep(60 * (attempt + 1))
                     elif resp.status in (401, 403, 404):
-                        self.logger.warning("HTTP %d from %s", resp.status, url[:80])
+                        self.logger.debug("HTTP %d from %s", resp.status, url[:80])
                         return None
                     else:
                         self.logger.warning("HTTP %d from %s", resp.status, url[:80])
@@ -174,6 +174,148 @@ class BaseConnector(ABC):
                 await asyncio.sleep(2 ** attempt)
         return None
 
+    async def _fetch_rss_items(
+        self,
+        url: str,
+        headers: Optional[Dict] = None,
+    ) -> List[Dict[str, Any]]:
+        import urllib.parse
+        import xml.etree.ElementTree as ET
+        import re
+
+        # Try direct fetch first
+        text = await self._get(url, headers=headers)
+        
+        # Helper to parse RSS/Atom XML using ElementTree or feedparser
+        def parse_xml_items(xml_text: str) -> List[Dict[str, Any]]:
+            # Try feedparser first if installed
+            try:
+                import feedparser
+                feed = feedparser.parse(xml_text)
+                items = []
+                for entry in feed.entries:
+                    title = getattr(entry, "title", "")
+                    link = getattr(entry, "link", "")
+                    summary = getattr(entry, "summary", "") or getattr(entry, "description", "") or ""
+                    published = getattr(entry, "published", "")
+                    
+                    summary_clean = re.sub(r'<[^>]+>', ' ', summary)
+                    summary_clean = re.sub(r'\s+', ' ', summary_clean).strip()
+                    items.append({
+                        "title": str(title),
+                        "link": str(link),
+                        "summary": summary_clean,
+                        "published": str(published),
+                    })
+                if items:
+                    return items
+            except Exception:
+                pass
+
+            # Fallback to standard ElementTree parsing
+            try:
+                root = ET.fromstring(xml_text)
+            except Exception as e:
+                self.logger.debug("XML parse error: %s", e)
+                return []
+            
+            ns = {"atom": "http://www.w3.org/2005/Atom"}
+            items = []
+            xml_items = root.findall(".//item") + root.findall(".//atom:entry", ns)
+            for item in xml_items:
+                title = ""
+                for tag in ["title"]:
+                    child = item.find(tag)
+                    if child is not None and child.text:
+                        title = child.text.strip()
+                        break
+                
+                link = ""
+                for tag in ["link", "atom:link"]:
+                    child = item.find(tag, ns) if ":" in tag else item.find(tag)
+                    if child is not None:
+                        if child.text:
+                            link = child.text.strip()
+                        elif child.get("href"):
+                            link = child.get("href").strip()
+                        if link:
+                            break
+                
+                summary = ""
+                for tag in ["description", "summary", "content", "atom:summary"]:
+                    child = item.find(tag, ns) if ":" in tag else item.find(tag)
+                    if child is not None and child.text:
+                        summary = child.text.strip()
+                        break
+                
+                pubdate = ""
+                for tag in ["pubDate", "published", "updated", "atom:published"]:
+                    child = item.find(tag, ns) if ":" in tag else item.find(tag)
+                    if child is not None and child.text:
+                        pubdate = child.text.strip()
+                        break
+                
+                if title or link:
+                    summary_clean = re.sub(r'<[^>]+>', ' ', summary)
+                    summary_clean = re.sub(r'\s+', ' ', summary_clean).strip()
+                    items.append({
+                        "title": title,
+                        "link": link,
+                        "summary": summary_clean,
+                        "published": pubdate,
+                    })
+            return items
+
+        # Helper to parse JSON from rss2json
+        def parse_json_items(data: dict) -> List[Dict[str, Any]]:
+            items = []
+            for item in data.get("items", []):
+                title = item.get("title", "")
+                link = item.get("link", "")
+                summary = item.get("description", "") or item.get("content", "") or ""
+                pubdate = item.get("pubDate", "")
+                if title or link:
+                    summary_clean = re.sub(r'<[^>]+>', ' ', summary)
+                    summary_clean = re.sub(r'\s+', ' ', summary_clean).strip()
+                    items.append({
+                        "title": str(title),
+                        "link": str(link),
+                        "summary": summary_clean,
+                        "published": str(pubdate),
+                    })
+            return items
+
+        # 1. Check if direct fetch succeeded
+        if text and isinstance(text, str) and text.strip():
+            # If it's HTML, direct fetch was likely blocked
+            if text.strip().startswith(("<!DOCTYPE html", "<html", "<!doctype html")):
+                self.logger.debug("Direct fetch returned HTML instead of XML, likely Cloudflare page")
+            else:
+                items = parse_xml_items(text)
+                if items:
+                    return items
+
+        # 2. Try rss2json proxy as primary fallback
+        fallback_url = f"https://api.rss2json.com/v1/api.json?rss_url={urllib.parse.quote(url)}"
+        self.logger.debug(f"Direct RSS fetch failed or returned HTML for {url}, trying rss2json fallback {fallback_url}")
+        resp_data = await self._get(fallback_url, headers=headers)
+        if isinstance(resp_data, dict) and resp_data.get("status") == "ok":
+            items = parse_json_items(resp_data)
+            if items:
+                return items
+        
+        # 3. Try allorigins proxy as backup fallback
+        fallback_url2 = f"https://api.allorigins.win/raw?url={urllib.parse.quote(url)}"
+        self.logger.debug(f"rss2json failed, trying allorigins fallback {fallback_url2}")
+        text2 = await self._get(fallback_url2, headers=headers)
+        if text2 and isinstance(text2, str) and text2.strip():
+            if not text2.strip().startswith(("<!DOCTYPE html", "<html", "<!doctype html")):
+                items = parse_xml_items(text2)
+                if items:
+                    return items
+        
+        return []
+
     @abstractmethod
     async def fetch(self) -> List[Dict[str, Any]]:
         ...
@@ -194,7 +336,7 @@ class BaseConnector(ABC):
 
     @staticmethod
     def make_ioc(source, ioc, ioc_type, threat_actor="unknown", malware="",
-                 malware_family="", tags=None, confidence="medium",
+                 malware_family="", campaign="", tags=None, confidence="medium",
                  first_seen=None, last_seen=None, description="", raw=None):
         ts = now_iso()
         return {
@@ -202,6 +344,7 @@ class BaseConnector(ABC):
             "ioc": str(ioc).strip(), "ioc_type": ioc_type,
             "threat_actor": threat_actor or "unknown",
             "malware": malware or "", "malware_family": malware_family or "",
+            "campaign": campaign or "",
             "tags": tags or [], "confidence": confidence,
             "first_seen": first_seen or ts, "last_seen": last_seen or ts,
             "description": description, "raw": raw or {},

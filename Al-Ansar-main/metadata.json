@@ -1,0 +1,6 @@
+{
+  "name": "Al-Ansar Chicken Shop",
+  "description": "Internal business management and sales tracking system for Al-Ansar Chicken Shop, with Telegram Bot integration.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

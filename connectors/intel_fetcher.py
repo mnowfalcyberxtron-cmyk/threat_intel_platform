@@ -91,7 +91,7 @@ class IntelFetcherConnector(BaseConnector):
         return records
 
     async def _fetch_feed(self, cfg: dict, cutoff: str) -> List[Dict]:
-        text = await self._get(cfg["url"], headers={"User-Agent": "CyberXTron-TIP/2.2"})
+        text = await self._get(cfg["url"], headers={"User-Agent": "ThreatIntel-TIP/2.2"})
         if not text or not isinstance(text, str):
             return []
 

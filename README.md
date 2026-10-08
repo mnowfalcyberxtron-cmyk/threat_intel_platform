@@ -1,4 +1,4 @@
-# 🛡️ CyberXTron Threat Intelligence Platform
+# 🛡️ ThreatIntel Threat Intelligence Platform
 
 > **Real-time Threat Intelligence | Dark Web Monitoring | Ransomware Tracking | AI-Powered Analysis**
 
@@ -34,7 +34,7 @@
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/mnowfalcyberxtron-cmyk/threat_intel_platform.git
+git clone https://github.com/mnowfalthreatintel-cmyk/threat_intel_platform.git
 cd threat_intel_platform
 ```
 
@@ -84,6 +84,9 @@ THREATFOX_API_KEY=your_key
 # Dark Web / Tor
 ENABLE_DARKWEB=true
 TOR_SOCKS_PORT=9050
+TOR_SOCKS_PORT_FALLBACK=0
+TOR_AUTO_START=true
+TOR_AUTO_START_PORT=9050
 
 # Admin
 ADMIN_EMAIL=admin@yourdomain.com
@@ -98,9 +101,9 @@ AUTO_RUN_ALL_ON_STARTUP=true
 ## 🏗️ Architecture
 
 ```
-cyberxtron_tip  (FastAPI + Uvicorn — port 8002)
+threatintel_tip  (FastAPI + Uvicorn — port 8002)
       │
-      └──► cyberxtron_tor  (Tor SOCKS Proxy — port 9050)
+      └──► threatintel_tor  (Tor SOCKS Proxy — port 9050)
 ```
 
 **Services started automatically by Docker:**
@@ -183,4 +186,4 @@ MIT License — see [LICENSE](LICENSE) for details.
 
 ---
 
-*Built with ❤️ by the CyberXTron Team*
+*Built with ❤️ by the ThreatIntel Team*

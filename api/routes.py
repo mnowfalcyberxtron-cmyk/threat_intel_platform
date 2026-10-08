@@ -1,4 +1,4 @@
-"""api/routes.py — Core FastAPI routes for CyberXTron TIP v2.2"""
+"""api/routes.py — Core FastAPI routes for ThreatIntel TIP v2.2"""
 import json
 import logging
 from typing import Optional
@@ -28,12 +28,54 @@ class ReportRequest(BaseModel):
 
 @router.get("/api/health")
 async def health():
-    return {"status": "ok", "version": "2.4.0", "platform": "CyberXTron TIP"}
+    return {"status": "ok", "version": "2.4.0", "platform": "ThreatIntel TIP"}
 
+
+_stats_cache = None
+_stats_cache_ts = 0
 
 @router.get("/api/stats")
 async def stats():
-    return await _db.get_stats()
+    global _stats_cache, _stats_cache_ts
+    import time
+    now_ts = time.time()
+    if _stats_cache and (now_ts - _stats_cache_ts < 30):
+        return _stats_cache
+    
+    res = await _db.get_stats()
+    _stats_cache = res
+    _stats_cache_ts = now_ts
+    return res
+
+
+
+# ── Refresh / Manual Trigger ───────────────────────────────────────────────────
+import asyncio as _asyncio
+
+@router.post("/api/refresh/rss")
+async def refresh_rss():
+    """Manually trigger RSS + campaign feed parse immediately."""
+    async def _run():
+        try:
+            from connectors.rss_feeds import RSSFeedsConnector
+            from engine.processor import IOCProcessor
+            connector = RSSFeedsConnector(db=_db)
+            records = await connector.run()
+            if records:
+                proc = IOCProcessor(_db)
+                stats = await proc.process_batch(records, "rss")
+                await _db.log("INFO", "rss", f"Manual refresh: +{stats.get('new',0)} new | {stats.get('updated',0)} updated")
+        except Exception as e:
+            await _db.log("ERROR", "rss", f"Manual refresh failed: {e}")
+    _asyncio.create_task(_run())
+    return {"status": "triggered", "message": "RSS feed parse started in background"}
+
+@router.post("/api/refresh/all")
+async def refresh_all():
+    """Trigger a full refresh of all feeds."""
+    if _scheduler:
+        _asyncio.create_task(_scheduler.run_all_now())
+    return {"status": "triggered", "message": "Full refresh started in background"}
 
 
 # ── IOCs ───────────────────────────────────────────────────────────────────────
@@ -55,6 +97,18 @@ async def list_iocs(
         threat_actor=threat_actor, malware=malware, source=source,
         confidence=confidence, date_from=date_from, date_to=date_to, search=search,
     )
+
+
+@router.get("/api/campaigns")
+async def get_campaigns(limit: int = 50):
+    campaigns = await _db.get_campaigns(limit)
+    return {"status": "ok", "campaigns": campaigns}
+
+
+@router.get("/api/campaigns/{campaign_name}/iocs")
+async def get_campaign_iocs(campaign_name: str, limit: int = 200):
+    iocs = await _db.get_campaign_iocs(campaign_name, limit)
+    return {"status": "ok", "campaign": campaign_name, "iocs": iocs}
 
 
 @router.get("/api/iocs/{ioc_id}/abuseipdb")
@@ -184,7 +238,7 @@ async def get_ioc(ioc_id: int):
     for f in ("sources", "tags", "raw_data"):
         if isinstance(ioc.get(f), str):
             try:    ioc[f] = json.loads(ioc[f])
-            except: ioc[f] = []
+            except Exception: ioc[f] = []
     return ioc
 
 @router.post("/api/iocs/deduplicate")

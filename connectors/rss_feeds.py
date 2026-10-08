@@ -68,26 +68,26 @@ class RSSFeedsConnector(BaseConnector):
         return records
 
     async def _process_feed(self, feed_name: str, feed_url: str) -> List[Dict[str, Any]]:
-        text = await self._get(feed_url)
-        if not text or not isinstance(text, str):
+        items = await self._fetch_rss_items(feed_url)
+        if not items:
             return []
 
-        feed = feedparser.parse(text)
         records = []
-
-        for entry in feed.entries[:20]:  # Limit to 20 most recent per feed
-            title = getattr(entry, "title", "")
-            link = getattr(entry, "link", "")
-            summary = getattr(entry, "summary", "") or getattr(entry, "description", "")
-            published = getattr(entry, "published", now_iso())
+        for item in items[:20]:  # Limit to 20 most recent per feed
+            title = item.get("title", "")
+            link = item.get("link", "")
+            summary = item.get("summary", "")
+            published = item.get("published", "")
 
             # Parse published date
-            try:
-                if hasattr(entry, "published_parsed") and entry.published_parsed:
-                    dt = datetime(*entry.published_parsed[:6], tzinfo=timezone.utc)
-                    published = dt.isoformat()
-            except Exception:
-                pass
+            if published:
+                try:
+                    from dateutil import parser
+                    published = parser.parse(published).astimezone(timezone.utc).isoformat()
+                except Exception:
+                    pass
+            if not published:
+                published = now_iso()
 
             # Combine title + summary for IOC extraction
             content = f"{title} {summary}"
@@ -127,6 +127,20 @@ class RSSFeedsConnector(BaseConnector):
         defanged = re.sub(r"\[\.\]", ".", defanged)
         defanged = re.sub(r"\[at\]", "@", defanged, flags=re.IGNORECASE)
 
+        # Extract campaign names
+        campaign = ""
+        campaign_match = re.search(r"\b(UAC-\d{4})\b", content, re.IGNORECASE)
+        if campaign_match:
+            campaign = campaign_match.group(1).upper()
+        else:
+            campaign_match = re.search(r"\b(Operation\s+[A-Za-z0-9_]+)\b", content, re.IGNORECASE)
+            if campaign_match:
+                campaign = campaign_match.group(1).title()
+            else:
+                campaign_match = re.search(r"\b(APT\s*\d+)\b", content, re.IGNORECASE)
+                if campaign_match:
+                    campaign = campaign_match.group(1).upper().replace(" ", "")
+
         for ioc_type, pattern in PATTERNS.items():
             if ioc_type in ("cve", "url"):  # handled separately or too noisy
                 continue
@@ -150,6 +164,7 @@ class RSSFeedsConnector(BaseConnector):
                         source=self.name,
                         ioc=value,
                         ioc_type=ioc_type,
+                        campaign=campaign,
                         tags=[feed_name.lower().replace(" ", "_"), "rss_extracted"],
                         confidence="low",
                         first_seen=published,

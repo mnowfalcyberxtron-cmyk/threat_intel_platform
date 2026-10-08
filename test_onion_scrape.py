@@ -6,6 +6,7 @@ import asyncio
 import aiohttp
 from aiohttp_socks import ProxyConnector
 from config import settings
+from utils.tor_manager import ensure_tor_proxy
 
 TOR_CHECK_URL = "https://check.torproject.org/api/ip"
 # DuckDuckGo's official .onion — the most reliable test target
@@ -13,15 +14,21 @@ TEST_ONION_URL = "https://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzcz
 
 async def test_tor_and_scrape():
     print("=" * 60)
-    print("  CyberXTron — .onion Scraping Capability Test")
-    print(f"  Tor Proxy: {settings.TOR_SOCKS_HOST}:{settings.TOR_SOCKS_PORT}")
+    print("  ThreatIntel — .onion Scraping Capability Test")
+    print(f"  Preferred Tor Proxy: {settings.TOR_SOCKS_HOST}:{settings.TOR_SOCKS_PORT}")
     print("=" * 60)
 
     # Step 1: Test Tor connectivity
     print("\n[1] Testing Tor proxy connectivity...")
-    tor_proxy = f"socks5://{settings.TOR_SOCKS_HOST}:{settings.TOR_SOCKS_PORT}"
+    tor = await ensure_tor_proxy(settings.TOR_SOCKS_HOST, settings.TOR_SOCKS_PORT, timeout=15)
+    tor_proxy = tor.get("proxy_url") or f"socks5://{settings.TOR_SOCKS_HOST}:{settings.TOR_SOCKS_PORT}"
     try:
-        connector = ProxyConnector.from_url(tor_proxy)
+        if not tor.get("ok"):
+            for attempt in tor.get("attempts", []):
+                print(f"    [CHECK] {attempt.get('host')}:{attempt.get('port')} -> {attempt.get('error') or 'not Tor'}")
+            raise RuntimeError(tor.get("error") or "No verified Tor SOCKS proxy found")
+
+        connector = ProxyConnector.from_url(tor_proxy, rdns=True)
         timeout = aiohttp.ClientTimeout(total=20)
         async with aiohttp.ClientSession(connector=connector, timeout=timeout) as session:
             async with session.get(TOR_CHECK_URL) as resp:
@@ -29,7 +36,7 @@ async def test_tor_and_scrape():
                 is_tor = data.get("IsTor", False)
                 exit_ip = data.get("IP", "unknown")
                 if is_tor:
-                    print(f"    [OK] Tor is ACTIVE. Exit IP: {exit_ip}")
+                    print(f"    [OK] Tor is ACTIVE via {tor_proxy}. Exit IP: {exit_ip}")
                 else:
                     print(f"    [WARN] Connected but not through Tor. IP: {exit_ip}")
     except Exception as e:
@@ -42,11 +49,11 @@ async def test_tor_and_scrape():
     # Step 2: Try to fetch a known .onion page
     print(f"\n[2] Attempting to scrape: {TEST_ONION_URL}")
     try:
-        connector = ProxyConnector.from_url(tor_proxy)
+        connector = ProxyConnector.from_url(tor_proxy, rdns=True)
         headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; rv:109.0) Gecko/20100101 Firefox/115.0"}
         timeout = aiohttp.ClientTimeout(total=60)
         async with aiohttp.ClientSession(connector=connector, timeout=timeout, headers=headers) as session:
-            async with session.get(TEST_ONION_URL) as resp:
+            async with session.get(TEST_ONION_URL, ssl=False) as resp:
                 status = resp.status
                 html = await resp.text()
                 size_kb = len(html) / 1024
@@ -74,7 +81,10 @@ async def test_tor_and_scrape():
                 proxy={"server": tor_proxy},
                 args=["--no-sandbox", "--disable-setuid-sandbox"]
             )
-            context = await browser.new_context(viewport={"width": 1280, "height": 800})
+            context = await browser.new_context(
+                viewport={"width": 1280, "height": 800},
+                ignore_https_errors=True
+            )
             page = await context.new_page()
             
             print(f"    Navigating via Playwright+Tor to DuckDuckGo .onion...")

@@ -7,7 +7,7 @@ from config import settings
 def _is_ip(h):
     p = h.split(".")
     try: return len(p)==4 and all(0<=int(x)<=255 for x in p)
-    except: return False
+    except Exception: return False
 
 class URLHausConnector(BaseConnector):
     name = "urlhaus"
@@ -18,11 +18,13 @@ class URLHausConnector(BaseConnector):
     async def fetch(self) -> List[Dict[str, Any]]:
         headers = {"Content-Type": "application/json"}
         api_key = getattr(settings, "URLHAUS_API_KEY", None)
+        if not api_key:
+            api_key = getattr(settings, "THREATFOX_API_KEY", None)
         if api_key:
-            headers["API-KEY"] = api_key
+            headers["Auth-Key"] = api_key
 
         # Try JSON API first
-        data = await self._post(self.API_URL, json_data={}, headers=headers)
+        data = await self._get(self.API_URL, headers=headers)
         if not data:
             data = await self._post("https://urlhaus-api.abuse.ch/v1/", json_data={"query": "get_urls", "limit": 200}, headers=headers)
 

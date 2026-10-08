@@ -48,8 +48,6 @@ THREAT_RSS_FEEDS = [
     {"url":"https://www.crowdstrike.com/blog/feed/","name":"CrowdStrike Blog","cat":"research"},
     {"url":"https://decoded.avast.io/feed/","name":"Avast Decoded","cat":"research"},
     {"url":"https://www.sentinelone.com/blog/feed/","name":"SentinelOne Blog","cat":"research"},
-    {"url":"https://www.rapid7.com/blog/rss.xml","name":"Rapid7 Blog","cat":"research"},
-    {"url":"https://blog.talosintelligence.com/feeds/posts/default","name":"Cisco Talos","cat":"research"},
 ]
 
 # Google News RSS searches (no key needed)
@@ -63,18 +61,18 @@ GOOGLE_NEWS_SEARCHES = [
     "ransomware group victim",
 ]
 
-# DuckDuckGo search queries (fallback external source when RSS/search feeds miss)
+# DuckDuckGo search queries (fallback external source)
 DUCKDUCKGO_SEARCHES = [
     "ransomware group victims leak site",
     "new malware campaign threat intelligence",
     "apt threat actor latest activity",
 ]
 
-# Reddit subreddits with JSON API (no key needed)
+# Reddit Sources for Threat Intel
 REDDIT_SOURCES = [
-    "https://www.reddit.com/r/netsec/new.json?limit=25",
-    "https://www.reddit.com/r/Malware/new.json?limit=25",
-    "https://www.reddit.com/r/cybersecurity/new.json?limit=25",
+    "https://www.reddit.com/r/netsec/new.json?limit=10",
+    "https://www.reddit.com/r/malware/new.json?limit=10",
+    "https://www.reddit.com/r/threatintel/new.json?limit=10"
 ]
 
 
@@ -90,7 +88,7 @@ class WebIntelConnector(BaseConnector):
     async def fetch(self) -> List[Dict[str, Any]]:
         records = []
         headers = {
-            "User-Agent": "Mozilla/5.0 (compatible; CyberXTron-TIP/2.3 Threat Intelligence)",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             "Accept": "application/rss+xml, application/xml, text/xml, application/json, */*",
         }
 
@@ -106,7 +104,7 @@ class WebIntelConnector(BaseConnector):
         ddg_items = await self._fetch_duckduckgo(headers)
         records.extend(ddg_items)
 
-        # 4. Reddit threat intel posts
+        # 4. Reddit threat intel sources
         reddit_items = await self._fetch_reddit(headers)
         records.extend(reddit_items)
 
@@ -136,24 +134,16 @@ class WebIntelConnector(BaseConnector):
         return out
 
     async def _fetch_rss_feed(self, url: str, name: str, cat: str, headers: dict) -> List[Dict]:
-        text = await self._get(url, headers=headers)
-        if not isinstance(text, str) or not text.strip():
-            return []
-        try:
-            root = ET.fromstring(text)
-        except Exception:
+        raw_items = await self._fetch_rss_items(url, headers=headers)
+        if not raw_items:
             return []
 
-        ns = {"atom": "http://www.w3.org/2005/Atom"}
         items = []
-
-        # Handle both RSS and Atom
-        for item in (root.findall(".//item") + root.findall(".//atom:entry", ns)):
-            title   = self._xml_text(item, ["title"])
-            link    = self._xml_text(item, ["link","atom:link"], ns) or \
-                     (item.find("link") is not None and item.find("link").get("href","")) or ""
-            summary = self._xml_text(item, ["description","summary","content","atom:summary"], ns)
-            pubdate = self._xml_text(item, ["pubDate","published","updated","atom:published"], ns)
+        for item in raw_items[:20]:
+            title = item.get("title", "")
+            link = item.get("link", "")
+            summary = item.get("summary", "")
+            pubdate = item.get("published", "")
 
             if not title or not link: continue
 
@@ -166,7 +156,8 @@ class WebIntelConnector(BaseConnector):
             entities  = self._extract_entities(content)
             category  = self._classify(content, cat)
 
-            if relevance < 0.2: continue  # Skip irrelevant items
+            # Keep all items from high-signal RSS feeds
+            relevance = max(relevance, 0.1)
 
             items.append({
                 "type": "feed_item",
@@ -182,7 +173,7 @@ class WebIntelConnector(BaseConnector):
                 "relevance": relevance,
             })
 
-        return items[:20]  # Max 20 per feed
+        return items
 
     async def _fetch_google_news(self, headers: dict) -> List[Dict]:
         items = []
@@ -223,13 +214,23 @@ class WebIntelConnector(BaseConnector):
     async def _fetch_duckduckgo(self, headers: dict) -> List[Dict]:
         """
         Fetch external intel snippets from DuckDuckGo HTML results.
-        Works as a resilient fallback when other external sources are sparse.
+        Uses a short per-query timeout to avoid blocking the scheduler.
         """
         items = []
-        for query in DUCKDUCKGO_SEARCHES:
+        for query in DUCKDUCKGO_SEARCHES[:2]:  # Limit to 2 queries max
             q = query.replace(" ", "+")
             url = f"https://duckduckgo.com/html/?q={q}"
-            text = await self._get(url, headers=headers)
+            try:
+                # Hard 12s timeout per DDG query to prevent scheduler blocking
+                text = await asyncio.wait_for(
+                    self._get(url, headers=headers), timeout=12.0
+                )
+            except asyncio.TimeoutError:
+                self.logger.debug("DDG query timed out: %s", query[:40])
+                continue
+            except Exception as e:
+                self.logger.debug("DDG fetch error: %s", e)
+                continue
             if not isinstance(text, str) or not text.strip():
                 continue
             try:
@@ -245,15 +246,12 @@ class WebIntelConnector(BaseConnector):
                     if not title:
                         continue
                     clean_url = href.strip()
-                    # Skip DDG internal redirect links and non-http links
                     if not clean_url.startswith("http") or "duckduckgo.com/" in clean_url:
                         continue
-
                     content = title
                     relevance = self._score_relevance(content)
                     if relevance < 0.28:
                         continue
-
                     items.append({
                         "type": "feed_item",
                         "title": title[:200],

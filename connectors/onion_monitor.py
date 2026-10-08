@@ -9,6 +9,7 @@ Key behaviour:
 import asyncio
 import logging
 import os
+import re
 from datetime import datetime, timezone
 import aiohttp
 from aiohttp_socks import ProxyConnector
@@ -25,36 +26,53 @@ class OnionMonitorConnector:
         self.db = db
         self.name = "onion_monitor"
         self.display_name = "Onion Status Monitor"
-        self.tor_proxy = f"socks5://{settings.TOR_SOCKS_HOST}:{settings.TOR_SOCKS_PORT}" if settings.ENABLE_DARKWEB else None
+        self.tor_proxy = self._proxy_url() if settings.ENABLE_DARKWEB else None
+
+    def _proxy_url(self) -> str:
+        return f"socks5://{settings.TOR_SOCKS_HOST}:{settings.TOR_SOCKS_PORT}"
+
+    async def _refresh_tor_proxy(self) -> bool:
+        """Start/detect Tor if needed and refresh the proxy URL after port discovery."""
+        if not settings.ENABLE_DARKWEB:
+            self.tor_proxy = None
+            return False
+        try:
+            from utils.tor_manager import ensure_tor_proxy
+
+            tor = await ensure_tor_proxy(settings.TOR_SOCKS_HOST, settings.TOR_SOCKS_PORT)
+            if tor.get("ok"):
+                self.tor_proxy = tor["proxy_url"]
+                return True
+            logger.warning("[OnionMonitor] Tor verification failed: %s", tor.get("error", "unknown error"))
+        except Exception as exc:
+            logger.warning("[OnionMonitor] Tor detection failed: %s", exc)
+        self.tor_proxy = None
+        return False
 
     async def _check_tor_available(self) -> bool:
-        """Return True if Tor proxy is reachable."""
+        if os.getenv("IS_VERCEL", "false").lower() == "true":
+            self.tor_proxy = None
+            return True
+        """Return True if Tor proxy is reachable and working."""
+        await self._refresh_tor_proxy()
         if not self.tor_proxy:
-            logger.warning("[OnionMonitor] No Tor proxy configured. Set TOR_SOCKS_PORT in .env")
             return False
-
         try:
-            connector = ProxyConnector.from_url(self.tor_proxy)
+            connector = ProxyConnector.from_url(self.tor_proxy, rdns=True) if self.tor_proxy else None
             timeout = aiohttp.ClientTimeout(total=15)
             async with aiohttp.ClientSession(connector=connector, timeout=timeout) as session:
                 async with session.get(TOR_CHECK_URL) as resp:
                     data = await resp.json()
-                    if data.get("IsTor", False):
-                        return True
+                    return data.get("IsTor", False)
         except Exception as e:
-            logger.error(f"[OnionMonitor] Tor check failed: {e}. Check if Tor service is running.")
+            logger.warning(f"[OnionMonitor] Tor not available: {e}")
             return False
-            
-        return False
-
-    def _format_url(self, url: str) -> str:
-        """Ensure URL has http prefix."""
-        return url if url.startswith("http") else f"http://{url}"
 
     async def run(self, pending_only: bool = False):
         """
-        Accuracy-first scan. Captures status, metadata, HTML, and screenshots.
-        Concurrency is limited to avoid overloading Tor.
+        Accuracy-first health scan using the proven Tor SOCKS5/aiohttp path.
+        Captures status and lightweight metadata; targeted scans still use
+        Playwright when a fresh screenshot is needed.
         """
         logger.info(f"[OnionMonitor] Starting scan (pending_only={pending_only}) — checking Tor availability...")
 
@@ -79,7 +97,7 @@ class OnionMonitorConnector:
             logger.info("[OnionMonitor] No sites to scan in this mode.")
             return
 
-        logger.info(f"[OnionMonitor] Scanning {len(sites)} sites (Concurrency=5)...")
+        logger.info(f"[OnionMonitor] Scanning {len(sites)} sites via Tor SOCKS5 (Concurrency=5)...")
         
         # Ensure screenshot dir exists
         os.makedirs("data/screenshots", exist_ok=True)
@@ -87,27 +105,12 @@ class OnionMonitorConnector:
         # Concurrency limit
         semaphore = asyncio.Semaphore(5)
 
-        async with async_playwright() as p:
-            # Launch chromium with or without Tor proxy
-            proxy_cfg = {"server": self.tor_proxy}
-            browser = await p.chromium.launch(
-                proxy=proxy_cfg,
-                args=["--no-sandbox", "--disable-setuid-sandbox"]
-            )
-            context = await browser.new_context(
-                viewport={'width': 1280, 'height': 800},
-                user_agent="Mozilla/5.0 (Windows NT 10.0; rv:109.0) Gecko/20100101 Firefox/115.0"
-            )
-            
-            async def bounded_scan(site):
-                async with semaphore:
-                    site_id, group, url, old_status = site
-                    await self._scan_site(context, site_id, group, url, old_status)
+        async def bounded_scan(site):
+            async with semaphore:
+                site_id, group, url, old_status = site
+                await self._scan_site_status(site_id, group, url, old_status)
 
-            # Run in parallel with semaphore
-            await asyncio.gather(*(bounded_scan(s) for s in sites))
-
-            if browser: await browser.close()
+        await asyncio.gather(*(bounded_scan(s) for s in sites), return_exceptions=True)
 
         await self.db.update_source_status(self.name, "ok", len(sites))
         logger.info(f"[OnionMonitor] Done. {len(sites)} sites processed.")
@@ -132,12 +135,16 @@ class OnionMonitorConnector:
 
         site_id, group, url, old_status = site
         
+        if os.getenv("IS_VERCEL", "false").lower() == "true":
+            logger.warning("[OnionMonitor] Playwright disabled on Vercel. Falling back to HTTP check.")
+            await self._fallback_check(site_id, group, url, old_status)
+            return True
+
         async with async_playwright() as p:
             browser = None
             try:
-                proxy_cfg = {"server": self.tor_proxy}
                 browser = await p.chromium.launch(
-                    proxy=proxy_cfg,
+                    proxy={"server": self.tor_proxy} if self.tor_proxy else None,
                     args=["--no-sandbox", "--disable-setuid-sandbox"]
                 )
                 context = await browser.new_context(
@@ -148,12 +155,81 @@ class OnionMonitorConnector:
                 return True
             except Exception as e:
                 logger.error(f"[OnionMonitor] Targeted scan failed: {e}")
+                await self._scan_site_status(site_id, group, url, old_status)
                 return False
             finally:
                 if browser: await browser.close()
 
+    async def _scan_site_status(self, site_id, group, url, old_status):
+        """Fast old-logic Tor check using aiohttp over SOCKS5 with remote DNS."""
+        full_url = url if str(url).startswith("http") else f"http://{url}"
+        try:
+            logger.info(f"[OnionMonitor] Checking via Tor: {group} ({str(url)[:30]}...)")
+            connector = ProxyConnector.from_url(self.tor_proxy, rdns=True) if self.tor_proxy else None
+            timeout = aiohttp.ClientTimeout(total=60, connect=20, sock_read=45)
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; rv:109.0) Gecko/20100101 Firefox/115.0",
+                "Accept": "text/html,application/xhtml+xml,*/*",
+                "Accept-Language": "en-US,en;q=0.5",
+            }
+            if not self.tor_proxy: full_url = full_url.replace('.onion', '.onion.ly')
+            async with aiohttp.ClientSession(connector=connector, timeout=timeout) as session:
+                async with session.get(full_url, headers=headers, allow_redirects=True, ssl=False) as resp:
+                    status = str(resp.status)
+                    is_online = resp.status < 400
+                    body = b""
+                    if is_online:
+                        body = await resp.content.read(512 * 1024)
+                    latency_status = "online" if is_online else "offline"
+                    if is_online:
+                        html = body.decode("utf-8", errors="ignore")
+                        title = self._extract_title(html)
+                        content = self._extract_text(html)[:1000]
+                        await self._update_online_metadata(site_id, status, title, content, html)
+                    else:
+                        await self._update_basic_status(site_id, status)
+                    await self._add_history(site_id, group, full_url, latency_status)
+                    logger.info("[OnionMonitor] Updated %s: HTTP %s", group, status)
+                    if (str(old_status) == "200") != is_online:
+                        await self._alert_status(group, url, old_status, status, is_online)
+        except asyncio.TimeoutError:
+            await self._mark_unreachable(site_id, group, full_url, old_status, "offline/timeout")
+        except Exception as e:
+            logger.debug(f"[OnionMonitor] Tor check failed for {url}: {e}")
+            await self._mark_unreachable(site_id, group, full_url, old_status, "offline/error")
+
+    def _extract_title(self, html: str) -> str:
+        m = re.search(r"<title[^>]*>(.*?)</title>", html or "", re.I | re.S)
+        if not m:
+            return ""
+        return re.sub(r"\s+", " ", m.group(1)).strip()[:200]
+
+    def _extract_text(self, html: str) -> str:
+        text = re.sub(r"(?is)<(script|style).*?</\1>", " ", html or "")
+        text = re.sub(r"(?s)<[^>]+>", " ", text)
+        return re.sub(r"\s+", " ", text).strip()
+
+    async def _update_online_metadata(self, site_id, status, title, content, full_html):
+        now = datetime.now(timezone.utc).isoformat()
+        await self.db._conn.execute(
+            """UPDATE onion_sites
+               SET last_checked=?, last_status=?, page_title=COALESCE(NULLIF(?,''), page_title),
+                   last_content=COALESCE(NULLIF(?,''), last_content),
+                   full_html=COALESCE(NULLIF(?,''), full_html)
+               WHERE id=?""",
+            (now, status, title, content, full_html, site_id),
+        )
+        await self.db._conn.commit()
+
+    async def _mark_unreachable(self, site_id, group, url, old_status, status):
+        await self._update_basic_status(site_id, status)
+        await self._add_history(site_id, group, url, "timeout" if "timeout" in status else "offline")
+        logger.info("[OnionMonitor] Updated %s: %s", group, status)
+        if old_status == "200":
+            await self._alert_status(group, url, old_status, status, False)
+
     async def _scan_site(self, context, site_id, group, url, old_status, victim_name=None):
-        full_url = self._format_url(url)
+        full_url = url if url.startswith("http") else f"http://{url}"
         try:
             logger.info(f"[OnionMonitor] Scanning: {group} ({url[:30]}...)")
             page = await context.new_page()
@@ -220,6 +296,7 @@ class OnionMonitorConnector:
                 
                 # Update DB
                 await self.db.update_onion_scrape(site_id, title, generator, content, full_html, ss_path)
+                await self._add_history(site_id, group, full_url, "online")
                 
                 # Status change alerts
                 if old_status != "200":
@@ -228,6 +305,7 @@ class OnionMonitorConnector:
             else:
                 status_code = str(response.status if response else "failed")
                 await self._update_basic_status(site_id, status_code)
+                await self._add_history(site_id, group, full_url, "offline")
                 if old_status == "200":
                     await self._alert_status(group, url, old_status, status_code, False)
 
@@ -241,17 +319,21 @@ class OnionMonitorConnector:
     async def _fallback_check(self, site_id, group, url, old_status):
         """Simple aiohttp check if browser fails."""
         try:
-            connector = ProxyConnector.from_url(self.tor_proxy)
+            connector = ProxyConnector.from_url(self.tor_proxy, rdns=True) if self.tor_proxy else None
             async with aiohttp.ClientSession(connector=connector, timeout=aiohttp.ClientTimeout(total=45)) as session:
-                full_url = self._format_url(url)
+                full_url = url if url.startswith("http") else f"http://{url}"
                 async with session.get(full_url) as resp:
                     new_status = str(resp.status)
                     is_online = resp.status < 400
                     await self._update_basic_status(site_id, new_status)
+                    await self._add_history(site_id, group, full_url, "online" if is_online else "offline")
+                    logger.info("[OnionMonitor] Updated %s: HTTP %s", group, new_status)
                     if (old_status == "200") != is_online:
                         await self._alert_status(group, url, old_status, new_status, is_online)
         except:
             await self._update_basic_status(site_id, "offline/timeout")
+            await self._add_history(site_id, group, url, "timeout")
+            logger.info("[OnionMonitor] Updated %s: offline/timeout", group)
             if old_status == "200":
                 await self._alert_status(group, url, old_status, "offline/timeout", False)
 
@@ -262,6 +344,18 @@ class OnionMonitorConnector:
             (now, status, site_id)
         )
         await self.db._conn.commit()
+
+    async def _add_history(self, site_id, group, url, status):
+        try:
+            await self.db.add_status_history(
+                target_type="onion_site",
+                target_id=site_id,
+                name=group or "",
+                url=url or "",
+                status=status,
+            )
+        except Exception:
+            pass
 
     async def _alert_status(self, group, url, old_status, new_status, is_online):
         severity = "medium" if is_online else "high"

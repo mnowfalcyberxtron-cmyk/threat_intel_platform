@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^python -c \"import api\\.advisory_routes; import database\\.db; print\\('\\[✓\\] All modules import successfully'\\)\" 2>&1 \\| Select-Object -Last 10$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}

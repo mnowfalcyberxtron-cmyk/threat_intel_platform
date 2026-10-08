@@ -18,9 +18,9 @@ class RansomlookMarketConnector(BaseConnector):
     tier = 1
 
     # Public endpoints
-    GROUPS_URL    = "https://api.ransomlook.io/api/groups"
+    GROUPS_URL    = "https://www.ransomlook.io/api/groups"
     CSV_URL       = "https://www.ransomlook.io/urls.csv"
-    VICTIMS_URL   = "https://api.ransomlook.io/api/victims/recent"
+    VICTIMS_URL   = "https://www.ransomlook.io/api/victims/recent"
     RSS_URL       = "https://www.ransomlook.io/rss.xml"
 
     def __init__(self, db=None):
@@ -40,13 +40,12 @@ class RansomlookMarketConnector(BaseConnector):
         asyncio.create_task(self.check_all_markets())
         
         # Combine JSON and RSS victims for continuous improvement
-        json_records = await self._fetch_recent_victims_json()
         rss_records  = await self._fetch_recent_victims_rss()
         
         # Deduplicate by victim name and group
         seen = set()
         combined = []
-        for r in (json_records + rss_records):
+        for r in rss_records:
             key = f"{r.get('victim_name')}|{r.get('group_name')}".lower()
             if key not in seen:
                 seen.add(key)
@@ -111,50 +110,29 @@ class RansomlookMarketConnector(BaseConnector):
 
         markets = []
         try:
-            # Try JSON API first
-            data = await self._get(self.GROUPS_URL)
-            if isinstance(data, list):
-                for g in data:
-                    name  = (g.get("name") or g.get("group") or "").strip()
-                    meta  = g.get("meta") or {}
-                    s_type = (meta.get("type") or "group").lower() if isinstance(meta, dict) else "group"
-                    # Map 'group' to 'threat_actor' for better UI clarity
-                    if s_type == "group": s_type = "threat_actor"
-                    
-                    desc  = (g.get("description") or "")[:300]
-                    for loc in (g.get("locations") or []):
-                        raw_url = (loc.get("fqdn") or loc.get("url") or "").strip()
-                        if raw_url:
-                            url = raw_url if raw_url.startswith("http") else f"https://{raw_url}"
-                            markets.append({
-                                "name": name, "url": url,
-                                "site_type": s_type, "description": desc,
-                            })
-        except Exception as e:
-            logger.warning("RansomLook JSON API failed (%s), trying CSV fallback", e)
-            try:
-                import aiohttp
-                async with aiohttp.ClientSession() as sess:
-                    async with sess.get(self.CSV_URL, timeout=aiohttp.ClientTimeout(total=20)) as resp:
-                        if resp.status == 200:
-                            text = await resp.text()
-                            lines = text.splitlines()
-                            if lines:
-                                header = [h.strip().strip('"') for h in lines[0].split(",")]
-                                for line in lines[1:]:
-                                    parts = [p.strip().strip('"') for p in line.split(",")]
-                                    row = dict(zip(header, parts))
-                                    name = (row.get("name") or row.get("group") or row.get("Name") or "").strip()
-                                    url  = (row.get("url")  or row.get("fqdn") or row.get("URL")  or "").strip()
-                                    s_type = row.get("type", "market").lower()
-                                    if name and url:
-                                        url = url if url.startswith("http") else f"https://{url}"
-                                        markets.append({
-                                            "name": name, "url": url,
-                                            "site_type": s_type, "description": "",
-                                        })
-            except Exception as csv_e:
-                logger.error("CSV fallback also failed: %s", csv_e)
+            import aiohttp
+            async with aiohttp.ClientSession() as sess:
+                async with sess.get(self.CSV_URL, timeout=aiohttp.ClientTimeout(total=20)) as resp:
+                    if resp.status == 200:
+                        text = await resp.text()
+                        lines = text.splitlines()
+                        if lines:
+                            header = [h.strip().strip('"') for h in lines[0].split(",")]
+                            for line in lines[1:]:
+                                parts = [p.strip().strip('"') for p in line.split(",")]
+                                row = dict(zip(header, parts))
+                                name = (row.get("name") or row.get("group") or row.get("Name") or "").strip()
+                                url  = (row.get("url")  or row.get("fqdn") or row.get("URL")  or "").strip()
+                                s_type = row.get("type", "market").lower()
+                                if name and url:
+                                    if not url.startswith(("http://", "https://")):
+                                        url = f"http://{url}" if ".onion" in url.lower() else f"https://{url}"
+                                    markets.append({
+                                        "name": name, "url": url,
+                                        "site_type": s_type, "description": "",
+                                    })
+        except Exception as csv_e:
+            logger.error("CSV fetch failed: %s", csv_e)
 
         if not markets:
             logger.info("No breach market URLs retrieved this cycle")
@@ -163,6 +141,7 @@ class RansomlookMarketConnector(BaseConnector):
         logger.info("RansomLook: upserting %d market URLs", len(markets))
         inserted = 0
         updated = 0
+        onion_synced = 0
         for m in markets:
             try:
                 cur = await db._conn.execute(
@@ -179,10 +158,24 @@ class RansomlookMarketConnector(BaseConnector):
                     inserted += 1
                 else:
                     updated += 1
+                if ".onion" in m["url"].lower():
+                    onion_cur = await db._conn.execute(
+                        """INSERT INTO onion_sites (group_name, url, description, site_type, active, last_status)
+                           VALUES (?, ?, 'Discovered from ransomlook.io', 'ransomware', 1, 'pending')
+                           ON CONFLICT(url) DO UPDATE SET
+                             group_name=COALESCE(NULLIF(excluded.group_name,''), group_name),
+                             description=CASE WHEN description IS NULL OR description='' THEN excluded.description ELSE description END,
+                             active=1""",
+                        (m["name"], m["url"]),
+                    )
+                    if onion_cur.rowcount > 0:
+                        onion_synced += 1
             except Exception as ue:
                 logger.debug("Upsert %s: %s", m["url"], ue)
         
         await db._conn.commit()
+        if onion_synced:
+            logger.info("RansomLook: synced %d .onion URLs into Dark Web Manager", onion_synced)
         if inserted > 0:
             await db.log("INFO", "ransomlook_market", f"Updated {len(markets)} markets (+{inserted} new)")
 
@@ -267,12 +260,27 @@ class RansomlookMarketConnector(BaseConnector):
         
         async def _check_one(row):
             async with semaphore:
+                import time as _time
+                t0 = _time.monotonic()
                 status_code, error_msg = await self._check_url_robust(row["url"])
+                latency_ms = int((_time.monotonic() - t0) * 1000)
+                is_online  = status_code == 200
                 val = str(status_code) if status_code else f"error:{error_msg[:40]}"
-                
+
                 screenshot_path = row["screenshot_path"]
-                # Only capture screenshot if online and (no screenshot exists or it's old)
-                if status_code == 200:
+                needs_screenshot = False
+                if not screenshot_path:
+                    needs_screenshot = True
+                else:
+                    import time
+                    from pathlib import Path
+                    local_path = Path("data") / screenshot_path.lstrip('/')
+                    if not local_path.exists():
+                        needs_screenshot = True
+                    elif time.time() - local_path.stat().st_mtime > 86400:
+                        needs_screenshot = True
+
+                if status_code == 200 and needs_screenshot:
                     try:
                         new_path = await self._capture_screenshot(row["url"], row["id"])
                         if new_path:
@@ -284,6 +292,19 @@ class RansomlookMarketConnector(BaseConnector):
                     "UPDATE breach_markets SET last_status=?, last_checked=datetime('now'), updated_at=datetime('now'), screenshot_path=? WHERE id=?",
                     (val, screenshot_path, row["id"]),
                 )
+
+                # ── Log to status_history for uptime pattern analysis ─────────
+                try:
+                    await db.add_status_history(
+                        target_type="breach_market",
+                        target_id=row["id"],
+                        name=row["name"],
+                        url=row["url"],
+                        status="online" if is_online else ("timeout" if not status_code else "offline"),
+                        latency_ms=latency_ms if is_online else None,
+                    )
+                except Exception:
+                    pass
         
         tasks = [_check_one(r) for r in rows]
         await asyncio.gather(*tasks, return_exceptions=True)
@@ -294,6 +315,10 @@ class RansomlookMarketConnector(BaseConnector):
         """Robust HTTP check with HEAD fallback to GET."""
         import aiohttp
         try:
+            # Ensure URL has http/https prefix
+            if not url.startswith("http://") and not url.startswith("https://"):
+                url = f"http://{url}"
+
             timeout = aiohttp.ClientTimeout(total=20)
             headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
             
@@ -301,14 +326,27 @@ class RansomlookMarketConnector(BaseConnector):
             is_onion = ".onion" in url.lower()
             connector = None
             if is_onion:
+                try:
+                    from utils.tor_manager import ensure_tor_proxy
+                    tor = await ensure_tor_proxy(settings.TOR_SOCKS_HOST, settings.TOR_SOCKS_PORT)
+                    if not tor.get("ok"):
+                        return None, tor.get("error", "Tor proxy is not verified")[:80]
+                    tor_proxy = tor["proxy_url"]
+                except Exception as tor_err:
+                    logger.warning("Could not verify Tor in breach check: %s", tor_err)
+                    return None, str(tor_err)[:80]
                 from aiohttp_socks import ProxyConnector
-                connector = ProxyConnector.from_url(f'socks5://{settings.TOR_SOCKS_HOST}:{settings.TOR_SOCKS_PORT}')
+                # KEY FIX: socks5 proxy with rdns=True resolves DNS through Tor for .onion hostnames
+                connector = ProxyConnector.from_url(
+                    tor_proxy,
+                    rdns=True
+                )
             
             async with aiohttp.ClientSession(timeout=timeout, connector=connector) as sess:
                 try:
                     async with sess.head(url, headers=headers, allow_redirects=True, ssl=False) as resp:
                         return resp.status, ""
-                except:
+                except Exception:
                     async with sess.get(url, headers=headers, allow_redirects=True, ssl=False) as resp:
                         return resp.status, ""
         except asyncio.TimeoutError: return None, "timeout"
@@ -320,6 +358,10 @@ class RansomlookMarketConnector(BaseConnector):
         from pathlib import Path
         import os
         
+        # Ensure URL has http/https prefix
+        if not url.startswith("http://") and not url.startswith("https://"):
+            url = f"http://{url}"
+
         # Determine output path
         screenshot_dir = Path("data/screenshots/markets")
         screenshot_dir.mkdir(parents=True, exist_ok=True)
@@ -329,30 +371,56 @@ class RansomlookMarketConnector(BaseConnector):
         is_onion = ".onion" in url.lower()
         proxy = None
         if is_onion:
-            proxy = {"server": f"socks5://{settings.TOR_SOCKS_HOST}:{settings.TOR_SOCKS_PORT}"}
+            try:
+                from utils.tor_manager import ensure_tor_proxy
+                tor = await ensure_tor_proxy(settings.TOR_SOCKS_HOST, settings.TOR_SOCKS_PORT)
+                if not tor.get("ok"):
+                    logger.warning("Skipping onion screenshot; Tor is not verified: %s", tor.get("error"))
+                    return ""
+                proxy = {"server": tor["proxy_url"]}
+            except Exception as tor_err:
+                logger.warning("Could not verify Tor in breach screenshot: %s", tor_err)
+                return ""
             
+        browser = None
         try:
             async with async_playwright() as p:
-                # Use a specific user data dir to avoid profile conflicts
-                browser = await p.chromium.launch(proxy=proxy)
+                browser = await p.chromium.launch(
+                    proxy=proxy,
+                    args=["--no-sandbox", "--disable-setuid-sandbox"],
+                )
                 context = await browser.new_context(
                     viewport={'width': 1280, 'height': 800},
-                    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    ignore_https_errors=True
                 )
                 page = await context.new_page()
                 
                 # Set a reasonable timeout for loading
-                timeout = 60000 if is_onion else 30000
-                await page.goto(url, wait_until="domcontentloaded", timeout=timeout)
-                # Wait a bit more for dynamic content
-                await asyncio.sleep(3)
+                timeout = 90000 if is_onion else 60000
+                try:
+                    await page.goto(url, wait_until="domcontentloaded", timeout=timeout)
+                    # Wait a bit more for dynamic content
+                    await asyncio.sleep(3)
+                except Exception as e:
+                    if "Timeout" in str(e):
+                        logger.debug(f"Page load timeout for {url}, proceeding to screenshot anyway")
+                    else:
+                        raise e
                 
                 await page.screenshot(path=str(full_path), full_page=False)
-                await browser.close()
                 
                 # Return path relative to the app root or as served by FastAPI
                 return f"/screenshots/markets/{filename}"
         except Exception as e:
-            logger.warning(f"Screenshot capture failed for {url}: {e}")
+            if "Timeout" in str(e):
+                logger.warning(f"Screenshot timeout for {url}")
+            else:
+                logger.warning(f"Screenshot capture failed for {url}: {e}")
             return ""
-
+        finally:
+            if browser:
+                try:
+                    await browser.close()
+                except Exception:
+                    pass

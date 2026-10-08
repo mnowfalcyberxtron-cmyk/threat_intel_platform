@@ -1,0 +1,233 @@
+2026-06-01 14:02:54,925 [INFO] engine.ai: AI Engine initialized — provider: groq
+2026-06-01 14:02:55,180 [INFO] main: ============================================================
+2026-06-01 14:02:55,183 [INFO] main:   ThreatIntel TIP v2.4 — Starting
+2026-06-01 14:02:55,185 [INFO] main:   AI        : GROQ
+2026-06-01 14:02:55,186 [INFO] main:   HIBR      : [ENABLED]
+2026-06-01 14:02:55,189 [INFO] main:   RL Pro    : [ENABLED]
+2026-06-01 14:02:55,191 [INFO] main:   Tor/DW    : [ENABLED]
+2026-06-01 14:02:55,193 [INFO] main:   WebFeed   : every 5 min
+2026-06-01 14:02:55,194 [INFO] main:   Advisories: Top 25 companies — every 30 min
+2026-06-01 14:02:55,196 [INFO] main: ============================================================
+2026-06-01 14:02:56,529 [INFO] database: Database ready: data/threat_intel.db
+2026-06-01 14:02:56,530 [INFO] api.advisory: ICS Advisory: initializing on startup...
+2026-06-01 14:03:00,482 [INFO] api.advisory: ICS Advisory: found 12971 fresh advisories in SQLite (using cached data)
+2026-06-01 14:03:00,514 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:03:00,515 [INFO] engine.scheduler:   [+] onion_sync - every 30 min
+2026-06-01 14:03:00,516 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:03:00,517 [INFO] engine.scheduler:   [+] threatfox - every 900s
+2026-06-01 14:03:00,519 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:03:00,520 [INFO] engine.scheduler:   [+] urlhaus - every 900s
+2026-06-01 14:03:00,522 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:03:00,522 [INFO] engine.scheduler:   [+] feodo - every 1800s
+2026-06-01 14:03:00,524 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:03:00,525 [INFO] engine.scheduler:   [+] malwarebazaar - every 900s
+2026-06-01 14:03:00,526 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:03:00,527 [INFO] engine.scheduler:   [+] ransomware_live - every 600s
+2026-06-01 14:03:00,527 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:03:00,528 [INFO] engine.scheduler:   [+] ransomlook_market - every 600s
+2026-06-01 14:03:00,528 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:03:00,530 [INFO] engine.scheduler:   [+] haveibeenransom - every 600s
+2026-06-01 14:03:00,531 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:03:00,531 [INFO] engine.scheduler:   [+] circl_osint - every 1800s
+2026-06-01 14:03:00,531 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:03:00,533 [INFO] engine.scheduler:   [+] rss - every 1200s
+2026-06-01 14:03:00,533 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:03:00,534 [INFO] engine.scheduler:   [+] github_intel - every 3600s
+2026-06-01 14:03:00,536 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:03:00,536 [INFO] engine.scheduler:   [+] hibr - every 3600s
+2026-06-01 14:03:00,537 [INFO] engine.scheduler:   [-] falconfeeds - disabled
+2026-06-01 14:03:00,538 [INFO] engine.scheduler:   [-] hibp - disabled
+2026-06-01 14:03:00,539 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:03:00,540 [INFO] engine.scheduler:   [+] darkweb - every 3600s
+2026-06-01 14:03:00,540 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:03:00,542 [INFO] engine.scheduler:   [+] web_intel - every 300s (5 min)
+2026-06-01 14:03:00,542 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:03:00,543 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:03:00,544 [INFO] engine.scheduler:   [+] advisory_monitor - every 30 min
+2026-06-01 14:03:00,545 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:03:00,545 [INFO] engine.scheduler:   [+] ics_sync - every 60 min
+2026-06-01 14:03:00,546 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:03:00,547 [INFO] engine.scheduler:   [+] excel_export - every 3600s
+2026-06-01 14:03:00,547 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:03:00,548 [INFO] engine.scheduler:   [+] excel_ingestion - every 1800s
+2026-06-01 14:03:00,550 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:03:00,551 [INFO] engine.scheduler:   [+] onion_monitor - every 1800s
+2026-06-01 14:03:00,552 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:03:00,553 [INFO] engine.scheduler:   [+] social_monitor - every 60 min
+2026-06-01 14:03:00,554 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:03:00,554 [INFO] engine.scheduler:   [+] telegram_monitor - every 30 min (5 sources)
+2026-06-01 14:03:00,556 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-01 14:03:00,557 [INFO] engine.scheduler:   [+] ioc_validation - every 6 hours
+2026-06-01 14:03:00,559 [INFO] apscheduler.scheduler: Added job "Onion Discovery Sync" to job store "default"
+2026-06-01 14:03:00,560 [INFO] apscheduler.scheduler: Added job "Threatfox" to job store "default"
+2026-06-01 14:03:00,562 [INFO] apscheduler.scheduler: Added job "Urlhaus" to job store "default"
+2026-06-01 14:03:00,562 [INFO] apscheduler.scheduler: Added job "Feodo" to job store "default"
+2026-06-01 14:03:00,563 [INFO] apscheduler.scheduler: Added job "Malwarebazaar" to job store "default"
+2026-06-01 14:03:00,564 [INFO] apscheduler.scheduler: Added job "Ransomware Live" to job store "default"
+2026-06-01 14:03:00,564 [INFO] apscheduler.scheduler: Added job "Ransomlook Market" to job store "default"
+2026-06-01 14:03:00,565 [INFO] apscheduler.scheduler: Added job "Haveibeenransom" to job store "default"
+2026-06-01 14:03:00,566 [INFO] apscheduler.scheduler: Added job "Circl Osint" to job store "default"
+2026-06-01 14:03:00,566 [INFO] apscheduler.scheduler: Added job "Rss" to job store "default"
+2026-06-01 14:03:00,567 [INFO] apscheduler.scheduler: Added job "Github Intel" to job store "default"
+2026-06-01 14:03:00,568 [INFO] apscheduler.scheduler: Added job "Hibr" to job store "default"
+2026-06-01 14:03:00,569 [INFO] apscheduler.scheduler: Added job "Darkweb" to job store "default"
+2026-06-01 14:03:00,570 [INFO] apscheduler.scheduler: Added job "Web Intel Feed" to job store "default"
+2026-06-01 14:03:00,572 [INFO] apscheduler.scheduler: Added job "Feed Cleanup" to job store "default"
+2026-06-01 14:03:00,573 [INFO] apscheduler.scheduler: Added job "Advisory Monitor" to job store "default"
+2026-06-01 14:03:00,573 [INFO] apscheduler.scheduler: Added job "ICS Advisory SQLite Sync" to job store "default"
+2026-06-01 14:03:00,574 [INFO] apscheduler.scheduler: Added job "Excel Export Generation" to job store "default"
+2026-06-01 14:03:00,575 [INFO] apscheduler.scheduler: Added job "Excel OneDrive Ingestion" to job store "default"
+2026-06-01 14:03:00,576 [INFO] apscheduler.scheduler: Added job "Onion Status Monitor" to job store "default"
+2026-06-01 14:03:00,577 [INFO] apscheduler.scheduler: Added job "Social Media Threat Monitor" to job store "default"
+2026-06-01 14:03:00,577 [INFO] apscheduler.scheduler: Added job "Telegram Threat Channel Discovery" to job store "default"
+2026-06-01 14:03:00,578 [INFO] apscheduler.scheduler: Added job "Automated IOC Validation Sweep" to job store "default"
+2026-06-01 14:03:00,579 [INFO] apscheduler.scheduler: Scheduler started
+2026-06-01 14:03:00,579 [INFO] engine.scheduler: Scheduler started — 23 jobs
+2026-06-01 14:03:00,580 [INFO] main: Tor/Network settling (15s delay)...
+2026-06-01 14:03:15,588 [INFO] main: Running all feeds immediately...
+2026-06-01 14:03:15,590 [INFO] main: Dashboard  -> http://localhost:8003
+2026-06-01 14:03:15,591 [INFO] main: API Docs   -> http://localhost:8003/api/docs
+2026-06-01 14:03:15,591 [INFO] engine.scheduler: [RELOAD] Running all connectors + web intel...
+2026-06-01 14:03:15,597 [INFO] engine.scheduler: [RUN] ThreatFox (Abuse.ch)
+2026-06-01 14:03:15,598 [INFO] connector.threatfox: Running connector: ThreatFox (Abuse.ch)
+2026-06-01 14:03:15,599 [INFO] engine.scheduler: [RUN] URLHaus (Abuse.ch)
+2026-06-01 14:03:15,600 [INFO] connector.urlhaus: Running connector: URLHaus (Abuse.ch)
+2026-06-01 14:03:15,601 [INFO] engine.scheduler: [RUN] Feodo Tracker (Abuse.ch)
+2026-06-01 14:03:15,603 [INFO] connector.feodo: Running connector: Feodo Tracker (Abuse.ch)
+2026-06-01 14:03:15,604 [INFO] engine.scheduler: [RUN] MalwareBazaar (Abuse.ch)
+2026-06-01 14:03:15,605 [INFO] connector.malwarebazaar: Running connector: MalwareBazaar (Abuse.ch)
+2026-06-01 14:03:15,612 [INFO] engine.scheduler: [RUN] Ransomware.live
+2026-06-01 14:03:15,615 [INFO] connector.ransomware_live: Running connector: Ransomware.live
+2026-06-01 14:03:16,741 [INFO] engine.scheduler: [RUN] RansomWatch (GitHub Mirror)
+2026-06-01 14:03:16,744 [INFO] connector.haveibeenransom: Running connector: RansomWatch (GitHub Mirror)
+2026-06-01 14:03:16,746 [INFO] engine.scheduler: [RUN] CIRCL OSINT Feeds
+2026-06-01 14:03:16,747 [INFO] connector.circl_osint: Running connector: CIRCL OSINT Feeds
+2026-06-01 14:03:16,749 [INFO] engine.scheduler: [RUN] RansomLook Breach Market Monitor
+2026-06-01 14:03:16,750 [INFO] connector.ransomlook_market: Running connector: RansomLook Breach Market Monitor
+2026-06-01 14:03:16,751 [INFO] connector.web_intel: Running connector: Web Threat Intel (Live Feed)
+2026-06-01 14:03:16,754 [INFO] connector.social_monitor: [SocialMonitor] Fetching recent threat data from X (TweetFeed)...
+2026-06-01 14:03:17,913 [INFO] connector.social_monitor: [SocialMonitor] Captured 36 threat items from X/TweetFeed
+2026-06-01 14:03:18,352 [INFO] connector.haveibeenransom: RansomWatch groups: 216 loaded
+2026-06-01 14:03:18,725 [INFO] connector.feodo: Feodo: fetched 5 C2 IPs
+2026-06-01 14:03:18,749 [INFO] connector.feodo: Feodo Tracker (Abuse.ch) returned 5 records
+2026-06-01 14:03:18,756 [INFO] connector.social_monitor: [SocialMonitor] Sync done. 1 items ( 1 emerging).
+2026-06-01 14:03:18,935 [INFO] connector.ransomware_live: Ransomware.live: Detected Qilin activity for victim Sinomax USA
+2026-06-01 14:03:18,935 [INFO] connector.ransomware_live: Ransomware.live: Detected Qilin activity for victim Mindpath College Health
+2026-06-01 14:03:18,936 [INFO] connector.ransomware_live: Ransomware.live: Detected Qilin activity for victim Carton Craft Supply
+2026-06-01 14:03:18,937 [INFO] connector.ransomware_live: Ransomware.live: Detected Qilin activity for victim Gallun Snow Associates
+2026-06-01 14:03:18,938 [INFO] connector.ransomware_live: Ransomware.live: Detected Qilin activity for victim Kennedy, McLaughlin & Associates
+2026-06-01 14:03:18,938 [INFO] connector.ransomware_live: Ransomware.live: Detected Qilin activity for victim HumanEdge
+2026-06-01 14:03:18,939 [INFO] connector.ransomware_live: Ransomware.live: Detected Qilin activity for victim Providence Medical Group
+2026-06-01 14:03:18,940 [INFO] connector.ransomware_live: Ransomware.live: Detected Qilin activity for victim Jens Jensen
+2026-06-01 14:03:18,940 [INFO] connector.ransomware_live: Ransomware.live: Detected Qilin activity for victim Dillon Family Medicine
+2026-06-01 14:03:18,941 [INFO] connector.ransomware_live: Ransomware.live: Detected Qilin activity for victim LA Woodworks
+2026-06-01 14:03:18,942 [INFO] connector.ransomware_live: Ransomware.live: Detected Qilin activity for victim Osool Poultry
+2026-06-01 14:03:18,942 [INFO] connector.ransomware_live: Ransomware.live: Detected Qilin activity for victim Martinez & Shanken
+2026-06-01 14:03:18,942 [INFO] connector.ransomware_live: Ransomware.live: Detected Qilin activity for victim Otthon Centrum
+2026-06-01 14:03:18,943 [INFO] connector.ransomware_live: Ransomware.live: Detected Qilin activity for victim Mainstreet Organization of REALTORS
+2026-06-01 14:03:18,943 [INFO] connector.ransomware_live: Ransomware.live: Detected Qilin activity for victim Shocco Springs
+2026-06-01 14:03:18,945 [INFO] connector.ransomware_live: Ransomware.live: Detected Qilin activity for victim Roofing Solutions
+2026-06-01 14:03:18,946 [INFO] connector.ransomware_live: Ransomware.live: Detected Qilin activity for victim William Davis Homes
+2026-06-01 14:03:19,596 [INFO] connector.ransomware_live: Ransomware.live API: 100 victims
+2026-06-01 14:03:19,702 [INFO] connector.urlhaus: URLHaus: fetched 400 records
+2026-06-01 14:03:19,709 [INFO] connector.urlhaus: URLHaus (Abuse.ch) returned 400 records
+2026-06-01 14:03:19,714 [INFO] connector.malwarebazaar: MalwareBazaar: 78 hashes
+2026-06-01 14:03:19,715 [INFO] connector.malwarebazaar: MalwareBazaar (Abuse.ch) returned 78 records
+2026-06-01 14:03:22,152 [INFO] connector.threatfox: ThreatFox: 252 IOCs
+2026-06-01 14:03:22,183 [INFO] connector.threatfox: ThreatFox (Abuse.ch) returned 252 records
+2026-06-01 14:03:22,538 [INFO] connector.haveibeenransom: RansomWatch: 15975 victims parsed
+2026-06-01 14:03:22,545 [INFO] connector.haveibeenransom: RansomWatch total: 16435 records
+2026-06-01 14:03:22,550 [INFO] connector.haveibeenransom: RansomWatch (GitHub Mirror) returned 16435 records
+2026-06-01 14:03:22,592 [INFO] connector.ransomlook_market: RansomLook: upserting 3477 market URLs
+2026-06-01 14:03:27,137 [INFO] engine.scheduler:   [OK] feodo: +0 new | 0 updated | 0 victims
+2026-06-01 14:03:27,748 [WARNING] connector.web_intel: HTTP 500 from https://api.rss2json.com/v1/api.json?rss_url=https%3A//decoded.avast.io/feed/
+2026-06-01 14:03:28,057 [INFO] engine.abuseipdb: [AbuseIPDB] Verified 171.213.224.180 with AbuseScore 4%
+2026-06-01 14:03:31,412 [WARNING] database: Failed to update source status for malwarebazaar: database is locked
+2026-06-01 14:03:31,750 [INFO] engine.scheduler:   [OK] malwarebazaar: +0 new | 32 updated | 0 victims
+2026-06-01 14:03:34,625 [INFO] connector.ransomware_live: Ransomware.live API: 650 groups/onions
+2026-06-01 14:03:34,628 [INFO] connector.ransomware_live: Scraping deep IOCs for active group: coinbasecartel
+2026-06-01 14:03:38,298 [INFO] connector.ransomware_live: Scraping deep IOCs for active group: termite
+2026-06-01 14:03:38,347 [WARNING] database: Failed to update source status for threatfox: database is locked
+2026-06-01 14:03:38,644 [INFO] engine.scheduler:   [OK] threatfox: +0 new | 32 updated | 0 victims
+2026-06-01 14:03:39,442 [INFO] connector.circl_osint: CIRCL OSINT Feeds returned 150 records
+2026-06-01 14:03:40,925 [INFO] connector.ransomware_live: Scraping deep IOCs for active group: 0day Syndicate
+2026-06-01 14:03:42,616 [INFO] connector.ransomware_live: Scraping deep IOCs for active group: lapsus$
+2026-06-01 14:03:45,312 [WARNING] database: Failed to update source status for urlhaus: database is locked
+2026-06-01 14:03:45,560 [INFO] connector.ransomware_live: Scraping deep IOCs for active group: abyss
+2026-06-01 14:03:45,770 [INFO] engine.scheduler:   [OK] urlhaus: +3 new | 2 updated | 0 victims
+2026-06-01 14:03:46,798 [WARNING] database: Failed to update source status for circl_osint: database is locked
+2026-06-01 14:03:47,091 [INFO] engine.scheduler:   [OK] circl_osint: +0 new | 0 updated | 0 victims
+2026-06-01 14:03:48,479 [INFO] connector.ransomware_live: Scraping deep IOCs for active group: kairos
+2026-06-01 14:03:51,620 [INFO] connector.ransomware_live: Scraping deep IOCs for active group: worldleaks
+2026-06-01 14:03:56,095 [INFO] connector.ransomware_live: Scraping deep IOCs for active group: shadowbyt3$
+2026-06-01 14:03:58,157 [INFO] connector.ransomware_live: Ransomware.live total: 766 records (100 victims, 650 groups, 16 scraped iocs)
+2026-06-01 14:03:58,188 [INFO] connector.ransomware_live: Ransomware.live returned 767 records
+2026-06-01 14:04:04,294 [INFO] connector.ransomlook_market: RansomLook: synced 75 .onion URLs into Dark Web Manager
+2026-06-01 14:04:04,706 [INFO] connector.ransomlook_market: [RansomLook] Auto-checking uptime for 3440 breach markets
+2026-06-01 14:04:06,340 [INFO] connector.ransomlook_market: RansomLook Breach Market Monitor returned 50 records
+2026-06-01 14:04:06,986 [INFO] connector.web_intel: WebIntel: 167 unique items fetched
+2026-06-01 14:04:07,016 [INFO] connector.web_intel: Web Threat Intel (Live Feed) returned 167 records
+2026-06-01 14:04:11,183 [WARNING] database: Failed to update source status for ransomlook_market: database is locked
+2026-06-01 14:04:11,516 [INFO] engine.scheduler:   [OK] ransomlook_market: +0 new | 0 updated | 0 victims
+2026-06-01 14:04:14,451 [WARNING] database: Failed to update source status for web_intel: database is locked
+2026-06-01 14:04:30,206 [WARNING] database: Failed to update source status for ransomware_live: database is locked
+2026-06-01 14:04:30,528 [INFO] engine.scheduler:   [OK] ransomware_live: +0 new | 0 updated | 0 victims
+INFO:     127.0.0.1:50203 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53214 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:51022 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50930 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:51136 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62133 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53930 - "POST /api/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53931 - "POST /api/auth/login HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:52431 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52025 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:52025 - "GET /dashboard HTTP/1.1" 307 Temporary Redirect
+2026-06-01 14:08:00,557 [INFO] apscheduler.executors.default: Running job "Web Intel Feed (trigger: interval[0:05:00], next run at: 2026-06-01 14:13:00 IST)" (scheduled at 2026-06-01 14:08:00.540709+05:30)
+2026-06-01 14:08:00,563 [INFO] connector.web_intel: Running connector: Web Threat Intel (Live Feed)
+2026-06-01 14:08:10,140 [WARNING] connector.web_intel: HTTP 422 from https://api.rss2json.com/v1/api.json?rss_url=https%3A//decoded.avast.io/feed/
+INFO:     127.0.0.1:50543 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55413 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:55413 - "GET /dashboard HTTP/1.1" 307 Temporary Redirect
+2026-06-01 14:08:26,400 [INFO] connector.web_intel: WebIntel: 167 unique items fetched
+2026-06-01 14:08:26,403 [INFO] connector.web_intel: Web Threat Intel (Live Feed) returned 167 records
+2026-06-01 14:08:32,126 [WARNING] database: Failed to update source status for web_intel: database is locked
+2026-06-01 14:08:32,157 [INFO] apscheduler.executors.default: Job "Web Intel Feed (trigger: interval[0:05:00], next run at: 2026-06-01 14:13:00 IST)" executed successfully
+INFO:     127.0.0.1:63839 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60109 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:60109 - "POST /api/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60109 - "GET /dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52525 - "GET /api/ai/provider/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55148 - "GET /api/auth/me HTTP/1.1" 404 Not Found
+2026-06-01 14:09:32,569 [INFO] httpx: HTTP Request: GET https://api.groq.com/openai/v1/models "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:60109 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60109 - "GET /api/alerts?limit=5 HTTP/1.1" 200 OK
+2026-06-01 14:09:33,811 [INFO] httpx: HTTP Request: GET https://openrouter.ai/api/v1/models "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:57730 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54332 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54332 - "POST /api/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54332 - "GET /dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54332 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56515 - "GET /api/ai/provider/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64910 - "GET /api/auth/me HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:64910 - "GET /api/alerts?limit=5 HTTP/1.1" 200 OK
+2026-06-01 14:10:01,666 [INFO] httpx: HTTP Request: GET https://api.groq.com/openai/v1/models "HTTP/1.1 200 OK"
+2026-06-01 14:10:02,593 [INFO] httpx: HTTP Request: GET https://openrouter.ai/api/v1/models "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:64910 - "GET /api/advisory/ics/meta HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64910 - "GET /api/advisory/ics?page=1&page_size=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62286 - "GET /api/ai/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53067 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51949 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:51949 - "POST /api/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51949 - "GET /dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52244 - "GET /api/ai/provider/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52612 - "GET /api/auth/me HTTP/1.1" 404 Not Found
+2026-06-01 14:11:00,331 [INFO] httpx: HTTP Request: GET https://api.groq.com/openai/v1/models "HTTP/1.1 200 OK"
+2026-06-01 14:11:01,260 [INFO] httpx: HTTP Request: GET https://openrouter.ai/api/v1/models "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:51949 - "GET /api/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51949 - "GET /api/alerts?limit=5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63786 - "GET /api/ai/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52612 - "GET /api/advisory/ics/meta HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52612 - "GET /api/advisory/ics?page=1&page_size=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63786 - "GET /api/advisory/ics?page=1&page_size=50&year=2026 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51949 - "GET /api/advisory/ics?page=1&page_size=50&year=2026&month=5 HTTP/1.1" 200 OK

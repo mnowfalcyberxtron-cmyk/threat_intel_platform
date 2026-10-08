@@ -1,0 +1,21 @@
+﻿237:     <div class="nav-item" data-view="victims" onclick="nav('victims',this)"><span class="nav-icon">Γÿá</span>Ransomware Victims</div>
+281:         <div class="stat-card c-red"><div class="stat-ico">Γÿá</div><div class="stat-label">Ransom Victims</div><div class="stat-val" id="s2">ΓÇö</div><div class="stat-sub">total tracked</div></div>
+291:         <div class="panel"><div class="ph"><div class="pt">Top Ransomware Groups</div></div><div class="pb" id="groups-list"></div></div>
+348:     <!-- RANSOMWARE VICTIMS -->
+352:         <input class="fi" id="vic-grp" placeholder="Ransomware group..." style="width:160px" oninput="debounce(applyVictimFilters,400)()">
+440:             <option value="group">Ransomware Group Profile</option>
+471:             <div class="msg ai">≡ƒæï I'm your ThreatIntel AI Analyst. Ask me anything about the threat intelligence in our database ΓÇö IOCs, threat actors, ransomware groups, malware families, defensive strategies, or general threat intelligence questions.</div>
+474:             <input id="chat-in" placeholder="Ask about threat actors, IOCs, ransomware groups..." onkeydown="if(event.key==='Enter')sendChat()">
+664:             <input class="fi" id="rl-search-q" placeholder="Search Ransomware.live victims..." style="width:280px" onkeydown="if(event.key==='Enter')rlSearch()">
+671:         <div class="ph"><div class="pt">Recent Ransomware.live Victims</div></div>
+680:         <div class="ph"><div class="pt">Active Ransomware Groups</div><span class="pbadge" id="rl-group-count">ΓÇö</span></div>
+1126:     dashboard:'Dashboard',iocs:'IOC Intelligence',victims:'Ransomware Victims',
+1210:   renderGroups(s.top_ransomware_groups||[]);
+1284:   if(!data.items?.length){tb.innerHTML='<tr><td colspan="10"><div class="empty"><div class="empty-ico">Γÿá</div><div class="empty-txt">No victims yet</div><div class="empty-sub">Ransomware.live and RansomWatch data loads on startup</div></div></td></tr>';return;}
+1391:   if(!link||link.includes('.onion'))link=victim.source==='haveibeenransom'?'https://haveibeenransom.com/':'https://www.ransomware.live/';
+1395:     ${dr('Ransomware Group',`<span style="color:var(--red);cursor:pointer" onclick="closeModal('victim-modal');openActorModal('${esc(victim.group_name)}')">${esc(victim.group_name)} Γåù</span>`)}
+1400:     ${dr('Source Feed',`<a href="${esc(link)}" target="_blank" style="color:var(--cyan);font-weight:600">${victim.source==='haveibeenransom'?'HIBR / RansomWatch':'Ransomware.live'} Γåù</a>`)}
+1417:   c.innerHTML='<div class="ai-loading"><span class="spinner"></span> Profiling ransomware group...</div>';
+1615:   const loaders={dashboard:loadDash,iocs:loadIOCs,victims:loadVictims,alerts_intel:loadAlertsIntel,alerts_darkweb:loadAlertsDarkWeb,advisory:loadSavedReports,advisories:loadAdvisories,sources:loadSources,logs:loadLogs,livefeed:loadFeed,ransomware:loadRL,'darkweb-mgr':loadDarkwebMgr,hibr:loadHIBR,chat:loadChatModel,ics:()=>loadIcsCves(1),breachmarkets:()=>loadBreachMarkets(1),telegram:()=>loadTelegram(1),social:()=>loadSocial(1)};
+2110:   if(!groups.length){c.innerHTML='<div class="empty" style="grid-column:1/-1;padding:20px"><div class="empty-txt">No group data yet</div><div class="empty-sub">Will populate after first Ransomware.live fetch</div></div>';return;}
+2129: async function rlTriggerScan(){toast('Triggering Ransomware.live fetch...','info');await api('/api/refresh',{method:'POST'});toast('Feed refresh triggered','ok');setTimeout(()=>{loadRLVictims();loadRLGroups();},8000);}

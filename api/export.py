@@ -74,7 +74,7 @@ async def export_iocs_csv(
     return StreamingResponse(
         iter([output.getvalue()]),
         media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=cyberxtron_iocs.csv"},
+        headers={"Content-Disposition": "attachment; filename=threatintel_iocs.csv"},
     )
 
 
@@ -104,7 +104,7 @@ async def export_iocs_json(
 
     return JSONResponse(
         content={"total": len(items), "iocs": items},
-        headers={"Content-Disposition": "attachment; filename=cyberxtron_iocs.json"},
+        headers={"Content-Disposition": "attachment; filename=threatintel_iocs.json"},
     )
 
 
@@ -126,12 +126,12 @@ async def export_iocs_flat(
         page=1, page_size=limit, ioc_type=ioc_type, confidence=confidence
     )
     lines = "\n".join(item["ioc"] for item in data.get("items", []))
-    lines = f"# CyberXTron TIP Export — Type: {ioc_type} | Confidence: {confidence or 'all'}\n" + lines
+    lines = f"# ThreatIntel TIP Export — Type: {ioc_type} | Confidence: {confidence or 'all'}\n" + lines
 
     return StreamingResponse(
         iter([lines]),
         media_type="text/plain",
-        headers={"Content-Disposition": f"attachment; filename=cyberxtron_{ioc_type}_blocklist.txt"},
+        headers={"Content-Disposition": f"attachment; filename=threatintel_{ioc_type}_blocklist.txt"},
     )
 
 
@@ -163,5 +163,74 @@ async def export_victims_csv(
     return StreamingResponse(
         iter([output.getvalue()]),
         media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=cyberxtron_victims.csv"},
+        headers={"Content-Disposition": "attachment; filename=threatintel_victims.csv"},
     )
+
+
+@export_router.get("/excel")
+async def export_excel(
+    year: Optional[int] = Query(None, description="Filter ICS advisories by CVE year (e.g. 2026)"),
+    month: Optional[int] = Query(None, description="Filter ICS advisories by month (1-12)"),
+    severity: Optional[str] = Query(None, description="Filter ICS advisories by severity"),
+    vendor: Optional[str] = Query(None, description="Filter ICS advisories by vendor name"),
+    search: Optional[str] = Query(None, description="Filter ICS advisories by text search"),
+    filter_mode: str = Query("cve_published", description="'cve_published' or 'advisory'"),
+):
+    """
+    Export comprehensive threat intelligence Excel workbook.
+    Includes:
+    - ICS Advisories (monthly sheets with critical CVEs highlighted)
+    - Breach Markets (uptime status)
+    - Onion Sites (status and screenshots)
+    - Uptime History (last 30 days)
+    """
+    db = get_db()
+    if not db:
+        return JSONResponse(
+            status_code=503,
+            content={"error": "Database not available"},
+        )
+    
+    try:
+        from utils.excel_exporter import ExcelExporter
+        from config import settings
+        from pathlib import Path
+        
+        exporter = ExcelExporter(db)
+        output_path = await exporter.export(
+            year=year,
+            month=month,
+            severity=severity,
+            vendor=vendor,
+            search=search,
+            filter_mode=filter_mode,
+        )
+        
+        if not output_path or not Path(output_path).exists():
+            logger.error("Excel export failed or file not found")
+            return JSONResponse(
+                status_code=500,
+                content={"error": "Excel generation failed"},
+            )
+        
+        # Read the file and stream it
+        with open(output_path, "rb") as f:
+            content = f.read()
+        
+        return StreamingResponse(
+            iter([content]),
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": "attachment; filename=threatintel_export.xlsx"},
+        )
+    except ImportError as e:
+        logger.error("Excel export dependencies missing: %s", e)
+        return JSONResponse(
+            status_code=503,
+            content={"error": "Excel export dependencies not installed (openpyxl, pandas)"},
+        )
+    except Exception as e:
+        logger.error("Excel export failed: %s", e)
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Excel export failed: {str(e)[:200]}"},
+        )

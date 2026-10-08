@@ -109,7 +109,7 @@ async def do_stats():
             async with conn.execute(f"SELECT COUNT(*) FROM {table} {where}") as cur:
                 return (await cur.fetchone())[0]
 
-        print("\n=== CyberXTron TIP — Database Statistics ===\n")
+        print("\n=== ThreatIntel TIP — Database Statistics ===\n")
         print(f"  Total IOCs:              {await count('iocs'):>8,}")
         high_conf = await count("iocs", "WHERE confidence_label='high'")
         print(f"  High-confidence IOCs:    {high_conf:>8,}")

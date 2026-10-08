@@ -1,0 +1,845 @@
+{
+  "start_entity": {
+    "value": "basilicfly.com",
+    "type": "domain"
+  },
+  "stats": {
+    "depth_reached": 2,
+    "api_calls_made": 51,
+    "entities_discovered": 77,
+    "metadata_count": 33,
+    "fulldata_count": 0,
+    "fullstealer_count": 0
+  },
+  "metadata": [
+    {
+      "Identities Found": 6,
+      "country": "",
+      "description": "",
+      "discovered": "2025-04-02 00:00:00",
+      "group_name": "Database World ROC",
+      "id": "9bd226d84063",
+      "id_source": "9bd226d84063",
+      "indexed": "2026-01-27T20:30:10.440923",
+      "leak_type": "traditional_breach",
+      "post_title": "@TXTLOG_ALIEN \u2014 @TXTLOG_LINK - 491.txt",
+      "post_url": "https://t.me/Database World ROC/10113",
+      "website": ""
+    },
+    {
+      "Identities Found": 2,
+      "country": "IN",
+      "description": "",
+      "discovered": "2026-01-30 00:00:00",
+      "group_name": "B F R e p o V 3 F i l e s",
+      "id": "efe2985af5b6",
+      "id_source": "efe2985af5b6",
+      "indexed": "2026-01-31T02:40:37.936740",
+      "leak_type": "traditional_breach",
+      "post_title": "IndiaMART_BF.7z",
+      "post_url": "https://t.me/B F R e p o V 3 F i l e s/",
+      "website": ""
+    },
+    {
+      "Identities Found": 1,
+      "country": "",
+      "description": "",
+      "discovered": "2026-04-05 00:00:00",
+      "group_name": "formaceft_db",
+      "id": "8e4305fdf2fe",
+      "id_source": "8e4305fdf2fe",
+      "indexed": "2026-04-26T15:51:37.034112",
+      "leak_type": "traditional_breach",
+      "post_title": "3200000 lines.txt",
+      "post_url": "https://t.me/formaceft_db/5641",
+      "website": ""
+    },
+    {
+      "Identities Found": 1,
+      "country": "",
+      "description": "\u041f\u0430\u0440\u043e\u043b\u044f \u043d\u0435\u0442. | 1.37 GB | forwarded from: Misha-z88 DB",
+      "discovered": "2025-04-01 00:00:00",
+      "group_name": "DBs w MTDT",
+      "id": "b4eae081e45a",
+      "id_source": "b4eae081e45a",
+      "indexed": "2026-07-22T00:57:56.801129",
+      "leak_type": "traditional_breach",
+      "post_title": "[03.26] ComboDoza by t.me runbas3.zip",
+      "post_url": "",
+      "website": ""
+    },
+    {
+      "Identities Found": 1,
+      "country": "",
+      "description": "",
+      "discovered": "2026-01-30 00:00:00",
+      "group_name": "B F R e p o V 3 F i l e s",
+      "id": "27f613f4597d",
+      "id_source": "27f613f4597d",
+      "indexed": "2026-01-30T17:18:24.573780",
+      "leak_type": "traditional_breach",
+      "post_title": "Aptoide_BF.7z",
+      "post_url": "https://t.me/B F R e p o V 3 F i l e s/",
+      "website": ""
+    },
+    {
+      "Identities Found": 1,
+      "country": "",
+      "description": "id, student_id, last_name, first_name, grade, email, school_id, dob, teacher, image_file_name, image_content_type, image_file_size, image_updated_at, shoob_id, id_only, data1, data2, data3, data4, period_id, user_id, webcam, access_code, enrolled, lower_teacher, educator_id, phone, sitting_schedule, notes, photo_was_taken, created_at, updated_at.   TheUnderground | 262.86 MB | forwarded from: Deleted Account",
+      "discovered": "2024-04-07 00:00:00",
+      "group_name": "DBs Backup",
+      "id": "2fa529e1086b",
+      "id_source": "2fa529e1086b",
+      "indexed": "2026-07-28T04:06:02.382957",
+      "leak_type": "traditional_breach",
+      "post_title": "american_school.rar",
+      "post_url": "",
+      "website": ""
+    },
+    {
+      "Identities Found": 1,
+      "country": "",
+      "description": "",
+      "discovered": "2026-01-30 00:00:00",
+      "group_name": "B F R e p o V 3 F i l e s",
+      "id": "6c72fe5e20c7",
+      "id_source": "6c72fe5e20c7",
+      "indexed": "2026-01-31T19:57:45.345158",
+      "leak_type": "traditional_breach",
+      "post_title": "IndiHome_BF.7z",
+      "post_url": "https://t.me/B F R e p o V 3 F i l e s/",
+      "website": ""
+    },
+    {
+      "Identities Found": 1,
+      "country": "",
+      "description": "",
+      "discovered": "2026-01-30 00:00:00",
+      "group_name": "B F R e p o V 3 F i l e s",
+      "id": "dcd8b108bffc",
+      "id_source": "dcd8b108bffc",
+      "indexed": "2026-02-01T06:34:47.354230",
+      "leak_type": "traditional_breach",
+      "post_title": "Disqus_BF.7z",
+      "post_url": "https://t.me/B F R e p o V 3 F i l e s/",
+      "website": ""
+    },
+    {
+      "Identities Found": 2,
+      "country": "",
+      "description": "",
+      "discovered": "2026-01-30 00:00:00",
+      "group_name": "B F R e p o V 3 F i l e s",
+      "id": "d3851b53f54a",
+      "id_source": "d3851b53f54a",
+      "indexed": "2026-02-10T00:51:42.329390",
+      "leak_type": "traditional_breach",
+      "post_title": "BVD_BF.7z",
+      "post_url": "https://t.me/B F R e p o V 3 F i l e s/",
+      "website": ""
+    },
+    {
+      "Identities Found": 1,
+      "country": "",
+      "description": "",
+      "discovered": "2026-02-24 00:00:00",
+      "group_name": "Durov",
+      "id": "039ca5d2d8b5",
+      "id_source": "039ca5d2d8b5",
+      "indexed": "2026-03-02T00:04:49.332267",
+      "leak_type": "traditional_breach",
+      "post_title": "\u0440\u0443\u0431\u0440\u0438\u043a\u0430 \u0441\u043b\u0438\u0432\u043e\u0432 \u0432 \u0441\u0431\u043e\u0440\u0435.rar",
+      "post_url": "https://t.me/Durov/5223",
+      "website": ""
+    },
+    {
+      "Identities Found": 1,
+      "country": "",
+      "description": "",
+      "discovered": "2026-01-30 00:00:00",
+      "group_name": "B F R e p o V 3 F i l e s",
+      "id": "3e2d8cc3a70e",
+      "id_source": "3e2d8cc3a70e",
+      "indexed": "2026-02-04T22:01:14.743166",
+      "leak_type": "traditional_breach",
+      "post_title": "Whitepages_BF.7z",
+      "post_url": "https://t.me/B F R e p o V 3 F i l e s/",
+      "website": ""
+    },
+    {
+      "Identities Found": 1,
+      "country": "RU",
+      "description": "\u2063       \u26a1\ufe0f STORM D\u0410\u0422\u0410 \u0412\u0410S\u0415 \u26a1\ufe0f",
+      "discovered": "2026-01-27 00:00:00",
+      "group_name": "\u26a1\ufe0f\ud835\ude4e\ud835\ude4f\ud835\ude4a\ud835\ude4d\ud835\ude48 D\u0430t\u0430 \u0412\u0430s\u0435",
+      "id": "4ec86699fe66",
+      "id_source": "4ec86699fe66",
+      "indexed": "2026-01-27T18:37:09.482666",
+      "leak_type": "traditional_breach",
+      "post_title": "d\u0435\u0406t\u0430.ru - @StormBaseAdapter.rar",
+      "post_url": "https://t.me/\u26a1\ufe0f\ud835\ude4e\ud835\ude4f\ud835\ude4a\ud835\ude4d\ud835\ude48 D\u0430t\u0430 \u0412\u0430s\u0435/356",
+      "website": ""
+    },
+    {
+      "Identities Found": 1,
+      "country": "",
+      "description": "",
+      "discovered": "2025-04-09 00:00:00",
+      "group_name": "Anonymous Russia \u0411\u0414",
+      "id": "a89ee0d5e06c",
+      "id_source": "a89ee0d5e06c",
+      "indexed": "2025-11-25T23:31:30.987667",
+      "leak_type": "traditional_breach",
+      "post_title": "Data4marketers) Special K Data Feed Spam List.part01.rar",
+      "post_url": "https://t.me/Anonymous Russia \u0411\u0414/7608",
+      "website": ""
+    },
+    {
+      "Identities Found": 1,
+      "country": "",
+      "description": "1.95 GB | forwarded from: Deanon Club [Hacking]",
+      "discovered": "2024-07-19 00:00:00",
+      "group_name": "DBs Backup",
+      "id": "c92b3c66b6e1",
+      "id_source": "c92b3c66b6e1",
+      "indexed": "2026-07-28T11:43:21.848244",
+      "leak_type": "traditional_breach",
+      "post_title": "250807711.7z.001",
+      "post_url": "",
+      "website": ""
+    },
+    {
+      "Identities Found": 7852192,
+      "country": "",
+      "description": "Founded in 1922, Arandell provides premedia, catalog printing, mailing, distribution, list management, database marketing, mobile solutions, logistics and consulting services to its partners in the retail and direct mail catalog markets.",
+      "discovered": "2023-04-02 07:10:31.842394",
+      "group_name": "medusa",
+      "id": "5991",
+      "id_source": "5991",
+      "indexed": "2025-06-19T05:52:42.971067",
+      "leak_type": "ransomware_leak",
+      "post_title": "Arandell Corp",
+      "post_url": "http://medusaxko7jxtrojdkxo66j7ck4q5tgktf7uqsqyfry4ebnxlcbkccyd.onion/detail?id=c44ef86df1bb21d64e75b0750c89d164",
+      "website": "arandell.com"
+    },
+    {
+      "Identities Found": 5173586,
+      "country": "KW",
+      "description": "[AI generated] Zain Group is a leading telecommunications company that operates across the Middle East and Africa. Founded in 1983, it's headquartered in Kuwait City, Kuwait. Zain provides a comprehensive range of mobile voice and data services to over 49 million active customers. With its modern networks, Zain is dedicated to continuous technological innovation and customer satisfaction.",
+      "discovered": "2025-11-21 17:32:58.773756",
+      "group_name": "clop",
+      "id": "24099",
+      "id_source": "24099",
+      "indexed": "2026-01-23T18:19:53.208675",
+      "leak_type": "ransomware_leak",
+      "post_title": "ZAIN.COM",
+      "post_url": "http://santat7kpllt6iyvqbr7q4amdv6dzrh6paatvyrzl7ry3zm72zigf4ad.onion/zain-com",
+      "website": "ZAIN.COM"
+    },
+    {
+      "Identities Found": 1672816,
+      "country": "CH",
+      "description": "[AI generated] Logitech.com is the official website of Logitech International S.A., a Swiss-American multinational company specializing in computer peripherals and software. Logitech products include keyboards, mice, tablet accessories, webcams, home and PC speakers, headphones, and audio devices. Their items are notable for being innovative, quality made, user-friendly and diverse to cater to a range of customer needs.",
+      "discovered": "2025-11-07 14:39:49.483787",
+      "group_name": "clop",
+      "id": "23675",
+      "id_source": "23675",
+      "indexed": "2025-12-06T20:17:24.713553",
+      "leak_type": "ransomware_leak",
+      "post_title": "LOGITECH.COM",
+      "post_url": "http://santat7kpllt6iyvqbr7q4amdv6dzrh6paatvyrzl7ry3zm72zigf4ad.onion/logitech-com",
+      "website": "LOGITECH.COM"
+    },
+    {
+      "Identities Found": 906886,
+      "country": "LK",
+      "description": "[AI generated] MAS Holdings is a leading manufacturer of intimate apparel, sportswear, performance wear and swimwear. Headquartered in Sri Lanka, it's one of the world's most recognized design-to-delivery solution providers in the apparel and fashion industry. MAS operates with a network of factories in 15 countries, employing over 99,000 people worldwide.",
+      "discovered": "2025-11-21 12:53:59.652132",
+      "group_name": "clop",
+      "id": "24062",
+      "id_source": "24062",
+      "indexed": "2025-12-26T05:34:51.032098",
+      "leak_type": "ransomware_leak",
+      "post_title": "MASHOLDINGS.COM",
+      "post_url": "http://santat7kpllt6iyvqbr7q4amdv6dzrh6paatvyrzl7ry3zm72zigf4ad.onion/masholdings-com",
+      "website": "MASHOLDINGS.COM"
+    },
+    {
+      "Identities Found": 721960,
+      "country": "",
+      "description": "",
+      "discovered": "2025-02-25 22:39:26.263462",
+      "group_name": "ddosecret",
+      "id": "d69c37760445",
+      "id_source": "d69c37760445",
+      "indexed": "2025-05-08T00:59:06.832153",
+      "leak_type": "traditional_breach",
+      "post_title": "Epik",
+      "post_url": "https://ddosecrets.com/wiki/Epik",
+      "website": ""
+    },
+    {
+      "Identities Found": 623449,
+      "country": "",
+      "description": "Over 350 GB+ of data was compromised, including data dumps of mail servers, databases, confidential documents, contracts, and much more sensitive material. | Size: 350GB+ (uncompressed) | Updated: 28 Mar 2026 | SHA256: 697c5cfbc64fa5cfbe3dd59a5cb4a2ee10ade8c53ef4c36f3ab3c7e1e35ff66e",
+      "discovered": "2026-03-28 20:23:34.617099",
+      "group_name": "shinyhunters",
+      "id": "27648",
+      "id_source": "27648",
+      "indexed": "2026-06-13T09:36:15.248627",
+      "leak_type": "ransomware_leak",
+      "post_title": "European Commission (*.europa.eu)",
+      "post_url": "",
+      "website": ""
+    },
+    {
+      "Identities Found": 498665,
+      "country": "US",
+      "description": "[AI generated] Helix ESG is a leading provider of offshore energy solutions. With their extensive fleet of vessels, they offer a range of services such as marine construction, repair & maintenance, salvage & decommissioning, and underwater exploration. The company focuses on delivering innovative solutions while also prioritizing their commitment to safety and environmental protection.",
+      "discovered": "2025-11-13 19:13:00.633940",
+      "group_name": "clop",
+      "id": "23870",
+      "id_source": "23870",
+      "indexed": "2025-12-31T08:56:33.595014",
+      "leak_type": "ransomware_leak",
+      "post_title": "HELIXESG.COM",
+      "post_url": "http://santat7kpllt6iyvqbr7q4amdv6dzrh6paatvyrzl7ry3zm72zigf4ad.onion/helixesg-com",
+      "website": "HELIXESG.COM"
+    },
+    {
+      "Identities Found": 294052,
+      "country": "",
+      "description": "",
+      "discovered": "2026-01-30 00:00:00",
+      "group_name": "B F R e p o V 3 F i l e s",
+      "id": "ab4d87208cf7",
+      "id_source": "ab4d87208cf7",
+      "indexed": "2026-01-31T03:05:41.772558",
+      "leak_type": "traditional_breach",
+      "post_title": "Deezer_BF.7z",
+      "post_url": "https://t.me/B F R e p o V 3 F i l e s/",
+      "website": ""
+    },
+    {
+      "Identities Found": 244364,
+      "country": "",
+      "description": "",
+      "discovered": "2025-07-23 00:00:00",
+      "group_name": "\u26a1\ufe0f\ud835\ude4e\ud835\ude4f\ud835\ude4a\ud835\ude4d\ud835\ude48 D\u0430t\u0430 \u0412\u0430s\u0435",
+      "id": "30a05861ff3d",
+      "id_source": "30a05861ff3d",
+      "indexed": "2025-12-17T00:05:22.646630",
+      "leak_type": "traditional_breach",
+      "post_title": "@StormBaseAdapter - \u0413\u043e\u0441\u0423\u0441\u043b\u0443\u0433\u0438.part01.rar",
+      "post_url": "https://t.me/\u26a1\ufe0f\ud835\ude4e\ud835\ude4f\ud835\ude4a\ud835\ude4d\ud835\ude48 D\u0430t\u0430 \u0412\u0430s\u0435/219",
+      "website": ""
+    },
+    {
+      "Identities Found": 219074,
+      "country": "DE",
+      "description": "[AI generated] CARGLASS.DE is a German automotive glass repair and replacement company. It offers services such as windshield repair, replacement of shattered or damaged automotive glass, and recalibration of Advanced Driver Assistance Systems (ADAS). Carglass.de has multiple service centers across Germany, provides mobile service options, and is a part of Belron, the world's leading vehicle glass repair and replacement group.",
+      "discovered": "2025-11-13 19:05:19.487997",
+      "group_name": "clop",
+      "id": "23858",
+      "id_source": "23858",
+      "indexed": "2026-01-15T06:53:14.637127",
+      "leak_type": "ransomware_leak",
+      "post_title": "CARGLASS.DE",
+      "post_url": "http://santat7kpllt6iyvqbr7q4amdv6dzrh6paatvyrzl7ry3zm72zigf4ad.onion/carglass-de",
+      "website": "CARGLASS.DE"
+    },
+    {
+      "Identities Found": 211530,
+      "country": "US",
+      "description": "Several hundreds of millions of records containing PII, transaction/order data, other internal corporate data, and a lot more (you don't want us to say publicly) have been compromised. This is a final warning to reach out by 05 Mar 2026 before we leak along with several annoying (digital) problems that'll come your way. Make the right decision, don't be the next headline. | Updated: 03 Mar 2026 | Warning: FINAL WARNING",
+      "discovered": "2026-03-03 04:46:05.244779",
+      "group_name": "shinyhunters",
+      "id": "26996",
+      "id_source": "26996",
+      "indexed": "2026-06-23T09:48:02.136680",
+      "leak_type": "ransomware_leak",
+      "post_title": "Woflow, Inc.",
+      "post_url": "",
+      "website": ""
+    },
+    {
+      "Identities Found": 211434,
+      "country": "US",
+      "description": "",
+      "discovered": "2026-02-26 00:00:00",
+      "group_name": "Database World ROC",
+      "id": "0f3816d5be5f",
+      "id_source": "0f3816d5be5f",
+      "indexed": "2026-07-12T21:23:47.783192",
+      "leak_type": "traditional_breach",
+      "post_title": "2021_1_USA_Consumer_LF_TX-2.rar",
+      "post_url": "https://t.me/Database World ROC/19838",
+      "website": ""
+    },
+    {
+      "Identities Found": 169474,
+      "country": "US",
+      "description": "United States",
+      "discovered": "2024-01-06 08:47:24.950221",
+      "group_name": "play",
+      "id": "10362",
+      "id_source": "10362",
+      "indexed": "2025-06-05T21:46:12.436038",
+      "leak_type": "ransomware_leak",
+      "post_title": "Televerde",
+      "post_url": "http://k7kg3jqxang3wh7hnmaiokchk7qoebupfgoik6rha6mjpzwupwtj25yd.onion/topic.php?id=jZRznp8QFqTdD1",
+      "website": "televerde.com"
+    },
+    {
+      "Identities Found": 135314,
+      "country": "",
+      "description": "\u041e\u0431\u0449\u0435\u0435 \u043a\u043e\u043b\u0438\u0447\u0435\u0441\u0442\u0432\u043e \u0441\u0442\u0440\u043e\u043a: 88320017 \u0421\u0442\u0440\u043e\u043a \u0441 Phone1: 88319874 \u0421\u0442\u0440\u043e\u043a \u0441 Phone2: 66268381 \u0421\u0442\u0440\u043e\u043a \u0441 \u0445\u043e\u0442\u044f \u0431\u044b \u043e\u0434\u043d\u0438\u043c \u0442\u0435\u043b\u0435\u0444\u043e\u043d\u043e\u043c: 88320005 \u0421\u0442\u0440\u043e\u043a \u0431\u0435\u0437 \u0442\u0435\u043b\u0435\u0444\u043e\u043d\u043e\u0432: 12 \u0421\u0442\u0440\u043e\u043a \u0441 \u043f\u043e\u043b\u043d\u044b\u043c\u0438 \u0434\u0430\u043d\u043d\u044b\u043c\u0438: 35730980 \u0421\u0442\u0440\u043e\u043a \u0431\u0435\u0437 SSN: 14323572",
+      "discovered": "2025-12-28 00:00:00",
+      "group_name": "Durov",
+      "id": "51a7da0f49b8",
+      "id_source": "51a7da0f49b8",
+      "indexed": "2025-12-29T19:17:47.895594",
+      "leak_type": "traditional_breach",
+      "post_title": "att.7z",
+      "post_url": "https://t.me/Durov/4266",
+      "website": ""
+    },
+    {
+      "Identities Found": 109326,
+      "country": "",
+      "description": "",
+      "discovered": "2025-03-31 00:00:00",
+      "group_name": "LKnet reserve chat",
+      "id": "e3e97a341d0b",
+      "id_source": "e3e97a341d0b",
+      "indexed": "2025-12-11T07:15:11.589143",
+      "leak_type": "traditional_breach",
+      "post_title": "rosreestr_part.part01.rar",
+      "post_url": "https://t.me/LKnet reserve chat/700",
+      "website": ""
+    },
+    {
+      "Identities Found": 98166,
+      "country": "RU",
+      "description": "\u2063       \u26a1\ufe0f STORM D\u0410\u0422\u0410 \u0412\u0410S\u0415 \u26a1\ufe0f",
+      "discovered": "2025-05-07 00:00:00",
+      "group_name": "\u26a1\ufe0f\ud835\ude4e\ud835\ude4f\ud835\ude4a\ud835\ude4d\ud835\ude48 D\u0430t\u0430 \u0412\u0430s\u0435",
+      "id": "e99bf0fa2018",
+      "id_source": "e99bf0fa2018",
+      "indexed": "2025-11-29T19:18:19.952846",
+      "leak_type": "traditional_breach",
+      "post_title": "gosuslugi.ru - @StormAndDataBase.zip",
+      "post_url": "https://t.me/\u26a1\ufe0f\ud835\ude4e\ud835\ude4f\ud835\ude4a\ud835\ude4d\ud835\ude48 D\u0430t\u0430 \u0412\u0430s\u0435/188",
+      "website": ""
+    },
+    {
+      "Identities Found": 98005,
+      "country": "",
+      "description": "\ud83d\udcbbgosuslugi 2025  Number of lines 55KK  \ud83d\udc49 @kingsmanrecovery",
+      "discovered": "2025-04-15 00:00:00",
+      "group_name": "Kingsman",
+      "id": "848905629689",
+      "id_source": "848905629689",
+      "indexed": "2025-12-18T00:09:37.769151",
+      "leak_type": "ransomware_leak",
+      "post_title": "\u0433\u043e\u0441\u044b 55\u043a\u043a.zip",
+      "post_url": "https://t.me/Kingsman/112",
+      "website": ""
+    },
+    {
+      "Identities Found": 82410,
+      "country": "",
+      "description": "",
+      "discovered": "2026-02-22 00:00:00",
+      "group_name": "Database World ROC",
+      "id": "7761ed15a9ba",
+      "id_source": "7761ed15a9ba",
+      "indexed": "2026-03-02T04:37:30.820111",
+      "leak_type": "traditional_breach",
+      "post_title": "@BreachedData1 LinkedIn 2021-23 Cleaned.7z.001",
+      "post_url": "https://t.me/Database World ROC/18424",
+      "website": ""
+    },
+    {
+      "Identities Found": 80527,
+      "country": "US",
+      "description": "United States",
+      "discovered": "2024-10-24 00:53:35.363318",
+      "group_name": "play",
+      "id": "14921",
+      "id_source": "14921",
+      "indexed": "2025-07-04T17:12:02.735947",
+      "leak_type": "ransomware_leak",
+      "post_title": "Eagle Industries",
+      "post_url": "http://k7kg3jqxang3wh7hnmaiokchk7qoebupfgoik6rha6mjpzwupwtj25yd.onion/topic.php?id=ixi0vgvQHQvNdI",
+      "website": "eagleindinc.com"
+    }
+  ],
+  "fulldata": [],
+  "fullstealer": [],
+  "graph": {
+    "nodes": [
+      {
+        "id": "domain:basilicfly.com",
+        "type": "domain",
+        "value": "basilicfly.com",
+        "depth": 0,
+        "confidence": 1.0,
+        "reason": "Discovered from start query",
+        "path": null
+      },
+      {
+        "id": "phone:10.440923",
+        "type": "phone",
+        "value": "10.440923",
+        "depth": 1,
+        "confidence": 0.85,
+        "reason": "Discovered from domain:basilicfly.com",
+        "path": "domain:basilicfly.com"
+      },
+      {
+        "id": "username:491.txt",
+        "type": "username",
+        "value": "491.txt",
+        "depth": 1,
+        "confidence": 0.85,
+        "reason": "Discovered from domain:basilicfly.com",
+        "path": "domain:basilicfly.com"
+      },
+      {
+        "id": "phone:37.936740",
+        "type": "phone",
+        "value": "37.936740",
+        "depth": 1,
+        "confidence": 0.85,
+        "reason": "Discovered from domain:basilicfly.com",
+        "path": "domain:basilicfly.com"
+      },
+      {
+        "id": "phone:37.034112",
+        "type": "phone",
+        "value": "37.034112",
+        "depth": 1,
+        "confidence": 0.85,
+        "reason": "Discovered from domain:basilicfly.com",
+        "path": "domain:basilicfly.com"
+      },
+      {
+        "id": "username:lines.txt",
+        "type": "username",
+        "value": "lines.txt",
+        "depth": 1,
+        "confidence": 0.85,
+        "reason": "Discovered from domain:basilicfly.com",
+        "path": "domain:basilicfly.com"
+      },
+      {
+        "id": "phone:56.801129",
+        "type": "phone",
+        "value": "56.801129",
+        "depth": 1,
+        "confidence": 0.85,
+        "reason": "Discovered from domain:basilicfly.com",
+        "path": "domain:basilicfly.com"
+      },
+      {
+        "id": "username:runbas3.zip",
+        "type": "username",
+        "value": "runbas3.zip",
+        "depth": 1,
+        "confidence": 0.85,
+        "reason": "Discovered from domain:basilicfly.com",
+        "path": "domain:basilicfly.com"
+      },
+      {
+        "id": "phone:24.573780",
+        "type": "phone",
+        "value": "24.573780",
+        "depth": 2,
+        "confidence": 0.7,
+        "reason": "Discovered from phone:10.440923",
+        "path": "phone:10.440923"
+      },
+      {
+        "id": "phone:02.382957",
+        "type": "phone",
+        "value": "02.382957",
+        "depth": 2,
+        "confidence": 0.7,
+        "reason": "Discovered from phone:10.440923",
+        "path": "phone:10.440923"
+      },
+      {
+        "id": "phone:45.345158",
+        "type": "phone",
+        "value": "45.345158",
+        "depth": 2,
+        "confidence": 0.7,
+        "reason": "Discovered from phone:10.440923",
+        "path": "phone:10.440923"
+      },
+      {
+        "id": "phone:47.354230",
+        "type": "phone",
+        "value": "47.354230",
+        "depth": 2,
+        "confidence": 0.7,
+        "reason": "Discovered from phone:10.440923",
+        "path": "phone:10.440923"
+      },
+      {
+        "id": "phone:42.329390",
+        "type": "phone",
+        "value": "42.329390",
+        "depth": 2,
+        "confidence": 0.7,
+        "reason": "Discovered from phone:37.034112",
+        "path": "phone:37.034112"
+      },
+      {
+        "id": "phone:49.332267",
+        "type": "phone",
+        "value": "49.332267",
+        "depth": 2,
+        "confidence": 0.7,
+        "reason": "Discovered from phone:37.034112",
+        "path": "phone:37.034112"
+      },
+      {
+        "id": "phone:14.743166",
+        "type": "phone",
+        "value": "14.743166",
+        "depth": 2,
+        "confidence": 0.7,
+        "reason": "Discovered from phone:37.034112",
+        "path": "phone:37.034112"
+      },
+      {
+        "id": "phone:09.482666",
+        "type": "phone",
+        "value": "09.482666",
+        "depth": 2,
+        "confidence": 0.7,
+        "reason": "Discovered from phone:37.034112",
+        "path": "phone:37.034112"
+      },
+      {
+        "id": "domain:StormBaseAdapter.rar",
+        "type": "domain",
+        "value": "StormBaseAdapter.rar",
+        "depth": 2,
+        "confidence": 0.7,
+        "reason": "Discovered from phone:37.034112",
+        "path": "phone:37.034112"
+      }
+    ],
+    "edges": [
+      {
+        "source": "domain:basilicfly.com",
+        "target": "phone:10.440923"
+      },
+      {
+        "source": "domain:basilicfly.com",
+        "target": "username:491.txt"
+      },
+      {
+        "source": "domain:basilicfly.com",
+        "target": "phone:37.936740"
+      },
+      {
+        "source": "domain:basilicfly.com",
+        "target": "phone:37.034112"
+      },
+      {
+        "source": "domain:basilicfly.com",
+        "target": "username:lines.txt"
+      },
+      {
+        "source": "domain:basilicfly.com",
+        "target": "phone:56.801129"
+      },
+      {
+        "source": "domain:basilicfly.com",
+        "target": "username:runbas3.zip"
+      },
+      {
+        "source": "phone:10.440923",
+        "target": "phone:24.573780"
+      },
+      {
+        "source": "phone:10.440923",
+        "target": "phone:02.382957"
+      },
+      {
+        "source": "phone:10.440923",
+        "target": "phone:45.345158"
+      },
+      {
+        "source": "phone:10.440923",
+        "target": "phone:47.354230"
+      },
+      {
+        "source": "phone:37.034112",
+        "target": "phone:42.329390"
+      },
+      {
+        "source": "phone:37.034112",
+        "target": "phone:49.332267"
+      },
+      {
+        "source": "phone:37.034112",
+        "target": "phone:14.743166"
+      },
+      {
+        "source": "phone:37.034112",
+        "target": "phone:09.482666"
+      },
+      {
+        "source": "phone:37.034112",
+        "target": "domain:StormBaseAdapter.rar"
+      }
+    ]
+  },
+  "timeline": {
+    "json": {
+      "id": "domain:basilicfly.com",
+      "type": "domain",
+      "value": "basilicfly.com",
+      "confidence": 1.0,
+      "reason": "Discovered from start query",
+      "children": [
+        {
+          "id": "phone:10.440923",
+          "type": "phone",
+          "value": "10.440923",
+          "confidence": 0.85,
+          "reason": "Discovered from domain:basilicfly.com",
+          "children": [
+            {
+              "id": "phone:24.573780",
+              "type": "phone",
+              "value": "24.573780",
+              "confidence": 0.7,
+              "reason": "Discovered from phone:10.440923",
+              "children": []
+            },
+            {
+              "id": "phone:02.382957",
+              "type": "phone",
+              "value": "02.382957",
+              "confidence": 0.7,
+              "reason": "Discovered from phone:10.440923",
+              "children": []
+            },
+            {
+              "id": "phone:45.345158",
+              "type": "phone",
+              "value": "45.345158",
+              "confidence": 0.7,
+              "reason": "Discovered from phone:10.440923",
+              "children": []
+            },
+            {
+              "id": "phone:47.354230",
+              "type": "phone",
+              "value": "47.354230",
+              "confidence": 0.7,
+              "reason": "Discovered from phone:10.440923",
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": "username:491.txt",
+          "type": "username",
+          "value": "491.txt",
+          "confidence": 0.85,
+          "reason": "Discovered from domain:basilicfly.com",
+          "children": []
+        },
+        {
+          "id": "phone:37.936740",
+          "type": "phone",
+          "value": "37.936740",
+          "confidence": 0.85,
+          "reason": "Discovered from domain:basilicfly.com",
+          "children": []
+        },
+        {
+          "id": "phone:37.034112",
+          "type": "phone",
+          "value": "37.034112",
+          "confidence": 0.85,
+          "reason": "Discovered from domain:basilicfly.com",
+          "children": [
+            {
+              "id": "phone:42.329390",
+              "type": "phone",
+              "value": "42.329390",
+              "confidence": 0.7,
+              "reason": "Discovered from phone:37.034112",
+              "children": []
+            },
+            {
+              "id": "phone:49.332267",
+              "type": "phone",
+              "value": "49.332267",
+              "confidence": 0.7,
+              "reason": "Discovered from phone:37.034112",
+              "children": []
+            },
+            {
+              "id": "phone:14.743166",
+              "type": "phone",
+              "value": "14.743166",
+              "confidence": 0.7,
+              "reason": "Discovered from phone:37.034112",
+              "children": []
+            },
+            {
+              "id": "phone:09.482666",
+              "type": "phone",
+              "value": "09.482666",
+              "confidence": 0.7,
+              "reason": "Discovered from phone:37.034112",
+              "children": []
+            },
+            {
+              "id": "domain:StormBaseAdapter.rar",
+              "type": "domain",
+              "value": "StormBaseAdapter.rar",
+              "confidence": 0.7,
+              "reason": "Discovered from phone:37.034112",
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": "username:lines.txt",
+          "type": "username",
+          "value": "lines.txt",
+          "confidence": 0.85,
+          "reason": "Discovered from domain:basilicfly.com",
+          "children": []
+        },
+        {
+          "id": "phone:56.801129",
+          "type": "phone",
+          "value": "56.801129",
+          "confidence": 0.85,
+          "reason": "Discovered from domain:basilicfly.com",
+          "children": []
+        },
+        {
+          "id": "username:runbas3.zip",
+          "type": "username",
+          "value": "runbas3.zip",
+          "confidence": 0.85,
+          "reason": "Discovered from domain:basilicfly.com",
+          "children": []
+        }
+      ]
+    },
+    "ascii": "\u2514\u2500\u2500 basilicfly.com [domain] (Conf: 1.0)\n    \u251c\u2500\u2500 10.440923 [phone] (Conf: 0.85)\n    \u2502   \u251c\u2500\u2500 24.573780 [phone] (Conf: 0.7)\n    \u2502   \u251c\u2500\u2500 02.382957 [phone] (Conf: 0.7)\n    \u2502   \u251c\u2500\u2500 45.345158 [phone] (Conf: 0.7)\n    \u2502   \u2514\u2500\u2500 47.354230 [phone] (Conf: 0.7)\n    \u251c\u2500\u2500 491.txt [username] (Conf: 0.85)\n    \u251c\u2500\u2500 37.936740 [phone] (Conf: 0.85)\n    \u251c\u2500\u2500 37.034112 [phone] (Conf: 0.85)\n    \u2502   \u251c\u2500\u2500 42.329390 [phone] (Conf: 0.7)\n    \u2502   \u251c\u2500\u2500 49.332267 [phone] (Conf: 0.7)\n    \u2502   \u251c\u2500\u2500 14.743166 [phone] (Conf: 0.7)\n    \u2502   \u251c\u2500\u2500 09.482666 [phone] (Conf: 0.7)\n    \u2502   \u2514\u2500\u2500 StormBaseAdapter.rar [domain] (Conf: 0.7)\n    \u251c\u2500\u2500 lines.txt [username] (Conf: 0.85)\n    \u251c\u2500\u2500 56.801129 [phone] (Conf: 0.85)\n    \u2514\u2500\u2500 runbas3.zip [username] (Conf: 0.85)"
+  }
+}
