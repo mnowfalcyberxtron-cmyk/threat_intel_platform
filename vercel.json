@@ -1,21 +1,53 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "main.py",
-      "use": "@vercel/python"
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "app": {
+      "root": ".",
+      "framework": "fastapi",
+      "buildCommand": "pip install -r requirements.txt"
+    },
+    "vendor_backend": {
+      "root": "vendor-disclosure-monitor/backend",
+      "framework": "fastapi",
+      "buildCommand": "pip install -r requirements.txt"
+    },
+    "vendor_frontend": {
+      "root": "vendor-disclosure-monitor/frontend",
+      "framework": "nextjs",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "vendor_backend",
+          "format": "url",
+          "env": "NEXT_PUBLIC_API_BASE_URL"
+        }
+      ]
     }
-  ],
-  "routes": [
+  },
+  "rewrites": [
     {
-      "src": "/(.*)",
-      "dest": "main.py"
+      "source": "/vendor/api/(.*)",
+      "destination": {
+        "service": "vendor_backend"
+      }
+    },
+    {
+      "source": "/vendor/(.*)",
+      "destination": {
+        "service": "vendor_frontend"
+      }
+    },
+    {
+      "source": "/(.*)",
+      "destination": {
+        "service": "app"
+      }
     }
   ],
   "crons": [
     {
       "path": "/api/refresh",
-      "schedule": "0 0 * * *"
+      "schedule": "0 */6 * * *"
     }
   ]
 }
