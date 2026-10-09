@@ -23,6 +23,12 @@ vendor-disclosure-monitor/frontend/node_modules/
 vendor-disclosure-monitor/__pycache__/
 Al-Ansar-main/
 Al-Ansar-main.zip
+cvelistV5.zip
+*.zip
+*.xlsx
+*.xls
+*.csv
+*.jsonl
 
 *.db
 *.db-*

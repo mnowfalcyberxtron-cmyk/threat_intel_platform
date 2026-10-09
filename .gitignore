@@ -34,3 +34,5 @@ migrate_sqlite_to_supabase.py
 *.zip
 cvelistV5.zip
 cvelistV5/
+
+.vercel
