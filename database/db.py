@@ -1,4 +1,4 @@
-"""
+﻿"""
 database/db.py — ThreatIntel TIP v2.4 Complete Database Layer
 KEY FIX: _migrate() creates ALL missing tables on existing databases.
 """

@@ -1,4 +1,4 @@
-"""main.py — ThreatIntel TIP v2.4 — Full Advisory Monitor + Fixed AI"""
+﻿"""main.py — ThreatIntel TIP v2.4 — Full Advisory Monitor + Fixed AI"""
 import asyncio, logging, sys, traceback, io, os, socket
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -208,7 +208,9 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error("CRITICAL STARTUP ERROR: %s", e)
         traceback.print_exc()
-        raise e
+        if not IS_VERCEL:
+            raise e
+        yield
     finally:
         logger.info("Shutting down...")
         scheduler.stop()
