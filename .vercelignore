@@ -1,4 +1,4 @@
-.git/
+﻿.git/
 .vercel/
 .env
 .env.*
@@ -9,17 +9,16 @@ node_modules/
 __pycache__/
 .pytest_cache/
 .vscode/
+.npm-cache/
 
 data/
 logs/
 screenshots/
 scratch/
-vendor-disclosure-monitor/.env
-vendor-disclosure-monitor/.venv/
-vendor-disclosure-monitor/data/
-vendor-disclosure-monitor/frontend/.next/
-vendor-disclosure-monitor/frontend/node_modules/
-vendor-disclosure-monitor/__pycache__/
+
+# Vendor disclosure monitor (separate service, not needed in main function)
+vendor-disclosure-monitor/
+
 Al-Ansar-main/
 Al-Ansar-main.zip
 cvelistV5.zip
@@ -28,6 +27,9 @@ cvelistV5.zip
 *.xls
 *.csv
 *.jsonl
+*.json
+!package.json
+!vercel.json
 
 *.db
 *.db-*
@@ -38,3 +40,15 @@ cvelistV5.zip
 *.err
 tmp_*
 test_output*.txt
+trigger.txt
+
+# Python scripts not needed at runtime
+check_*.py
+build_*.py
+capture_*.py
+align_*.py
+vercel_setup.py
+vercel_deploy.py
+test.js
+*.txt
+!requirements.txt
