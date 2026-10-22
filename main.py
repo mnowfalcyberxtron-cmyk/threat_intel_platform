@@ -139,10 +139,8 @@ async def lifespan(app: FastAPI):
                         logger.warning("Tor not verified at startup: %s", tor.get("error"))
                 except Exception as tor_err:
                     logger.warning("Tor startup check failed: %s", tor_err)
-        await db.initialize()
-        ai_engine.set_db(db)
-
-        # Wire all modules
+        # Wire all modules BEFORE db.initialize() so _db is never None
+        # even if initialization fails (Vercel cold-start / bad DB URL / SSL).
         routes_module._db = db; routes_module._scheduler = scheduler; routes_module._report_gen = report_gen; routes_module._validator = validator
         ai_module._db = db;     ai_module._ai = ai_engine
         export_module._db = db
@@ -156,6 +154,9 @@ async def lifespan(app: FastAPI):
         breach_module._db = db; breach_module._scheduler = scheduler
         telegram_module._db = db
         auth_module._db = db
+
+        await db.initialize()
+        ai_engine.set_db(db)
         
         # Initialize ICS advisory caching system (sync to SQLite on startup)
         try:
@@ -210,6 +211,10 @@ async def lifespan(app: FastAPI):
         traceback.print_exc()
         if not IS_VERCEL:
             raise e
+        # On Vercel: yield anyway so the process stays alive.
+        # auth_module._db is wired BEFORE initialize(), so auth endpoints
+        # will report a real DB error instead of 'Database not initialized'.
+        logger.warning("Vercel: continuing despite startup error - check DATABASE_URL and Supabase SSL")
         yield
     finally:
         logger.info("Shutting down...")

@@ -1,4 +1,4 @@
-﻿"""
+"""
 database/db.py — ThreatIntel TIP v2.4 Complete Database Layer
 KEY FIX: _migrate() creates ALL missing tables on existing databases.
 """
@@ -158,8 +158,33 @@ class Database:
         )
         if not db_url:
             db_url = "postgresql://postgres:postgres@localhost:5432/threatintel"
-            
-        pg_conn = await asyncpg.connect(db_url)
+
+        # ── SSL handling ─────────────────────────────────────────────────────
+        # asyncpg does NOT honour the ?sslmode= query-param by itself.
+        # Supabase (and most managed Postgres providers) REQUIRE SSL.
+        # Strip the sslmode param from the URL and pass ssl= explicitly so
+        # asyncpg doesn't receive an unknown keyword in the DSN.
+        use_ssl = False
+        if "sslmode=" in db_url:
+            import re as _re
+            m = _re.search(r"[?&]sslmode=([^&]+)", db_url)
+            if m and m.group(1).lower() in ("require", "verify-ca", "verify-full", "prefer"):
+                use_ssl = True
+            # Remove sslmode param so asyncpg doesn't choke on unknown kwarg
+            db_url = _re.sub(r"[?&]sslmode=[^&]*", "", db_url).rstrip("?&")
+        elif any(host in db_url for host in (".supabase.co", ".supabase.com", "supabase")):
+            # Supabase always requires SSL even if not in URL
+            use_ssl = True
+
+        try:
+            pg_conn = await asyncpg.connect(db_url, ssl=use_ssl if use_ssl else False, timeout=30)
+        except Exception as connect_err:
+            logger.error(
+                "Database connection FAILED. URL=%s…  SSL=%s  Error: %s",
+                db_url[:60], use_ssl, connect_err
+            )
+            raise
+
         self._conn = ConnectionWrapper(pg_conn)
 
         # Apply all schemas - CREATE IF NOT EXISTS is safe on existing DBs
@@ -172,7 +197,7 @@ class Database:
         await self._conn.commit()
         await self._seed_sources()
         await self._migrate_existing()
-        logger.info("Database ready: %s", self._db_path)
+        logger.info("Database ready (Postgres/Supabase): %s", db_url[:50])
 
     async def _migrate_existing(self):
         """
