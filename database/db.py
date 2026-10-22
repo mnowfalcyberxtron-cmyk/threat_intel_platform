@@ -58,11 +58,32 @@ def _derive_fixed_version_hint(text: Any) -> str:
 
 
 
+class Row(dict):
+    """Dictionary that also allows integer index access (e.g. row[0]), matching SQLite behavior."""
+    def __init__(self, record):
+        super().__init__(record)
+        self._record = record
+
+    def __getitem__(self, item):
+        if isinstance(item, int):
+            return self._record[item]
+        return super().__getitem__(item)
+
+    def get(self, key, default=None):
+        if isinstance(key, int):
+            try:
+                return self._record[key]
+            except (IndexError, KeyError):
+                return default
+        return super().get(key, default)
+
+
 class CursorWrapper:
-    def __init__(self, conn, sql, params):
+    def __init__(self, conn, sql, params, lock=None):
         self.conn = conn
         self.sql = sql
         self.params = params
+        self.lock = lock
         self._fetched = None
         self._rowcount = 0
         self._lastrowid = 0
@@ -78,6 +99,12 @@ class CursorWrapper:
         pass
 
     async def _execute(self):
+        if self.lock:
+            async with self.lock:
+                return await self._do_execute()
+        return await self._do_execute()
+
+    async def _do_execute(self):
         parts = self.sql.split('?')
         pg_sql = parts[0] + ''.join(f'${i+1}{p}' for i, p in enumerate(parts[1:]))
         
@@ -86,11 +113,16 @@ class CursorWrapper:
             pg_sql = pg_sql.replace('INSERT OR IGNORE INTO', 'INSERT INTO')
             if 'ON CONFLICT' not in pg_sql.upper():
                 pg_sql = pg_sql.rstrip().rstrip(';') + ' ON CONFLICT DO NOTHING'
-        pg_sql = pg_sql.replace("datetime('now')", "NOW()")
-        pg_sql = pg_sql.replace("datetime('now','-1 day')", "NOW() - INTERVAL '1 day'")
-        pg_sql = pg_sql.replace("datetime('now','-7 days')", "NOW() - INTERVAL '7 days'")
-        pg_sql = pg_sql.replace("datetime('now','-30 days')", "NOW() - INTERVAL '30 days'")
-        pg_sql = pg_sql.replace("datetime('now','start of day')", "CURRENT_DATE::timestamp")
+
+        # PostgreSQL text datetime conversions (ensures text >= text comparisons work)
+        pg_sql = pg_sql.replace("datetime('now')", "NOW()::text")
+        pg_sql = pg_sql.replace("datetime('now','-1 day')", "(NOW() - INTERVAL '1 day')::text")
+        pg_sql = pg_sql.replace("datetime('now','-7 days')", "(NOW() - INTERVAL '7 days')::text")
+        pg_sql = pg_sql.replace("datetime('now','-30 days')", "(NOW() - INTERVAL '30 days')::text")
+        pg_sql = pg_sql.replace("datetime('now','start of day')", "(CURRENT_DATE::timestamp)::text")
+        pg_sql = pg_sql.replace("date(updated_at)", "SUBSTRING(updated_at, 1, 10)")
+        pg_sql = pg_sql.replace("date(discovery_date)", "SUBSTRING(discovery_date, 1, 10)")
+        pg_sql = pg_sql.replace("date(created_at)", "SUBSTRING(created_at, 1, 10)")
         
         if pg_sql.strip().upper().startswith(("INSERT", "UPDATE", "DELETE")):
             if pg_sql.strip().upper().startswith("INSERT") and "RETURNING" not in pg_sql.upper() and "ON CONFLICT" not in pg_sql.upper():
@@ -128,14 +160,14 @@ class CursorWrapper:
         if self._fetched is None:
             await self._execute()
         if not self._fetched: return []
-        return [dict(r) for r in self._fetched]
+        return [Row(r) for r in self._fetched]
 
     async def fetchone(self):
         if self._fetched is None:
             await self._execute()
         if not self._fetched:
             return None
-        return dict(self._fetched[0])
+        return Row(self._fetched[0])
 
     @property
     def lastrowid(self):
@@ -148,9 +180,10 @@ class CursorWrapper:
 class ConnectionWrapper:
     def __init__(self, pg_conn):
         self.pg_conn = pg_conn
+        self._lock = asyncio.Lock()
 
     def execute(self, sql, params=()):
-        return CursorWrapper(self.pg_conn, sql, params)
+        return CursorWrapper(self.pg_conn, sql, params, lock=self._lock)
         
     async def commit(self):
         pass

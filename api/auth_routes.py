@@ -259,7 +259,9 @@ async def login(req: LoginRequest, request: Request, background_tasks: Backgroun
         value=f"{user['id']}:{user['email']}",
         httponly=True, 
         max_age=86400,
-        samesite="lax"
+        samesite="lax",
+        secure=True,
+        path="/"
     )
     return resp
 
@@ -267,17 +269,21 @@ async def login(req: LoginRequest, request: Request, background_tasks: Backgroun
 async def logout():
     from fastapi.responses import JSONResponse
     resp = JSONResponse({"message": "Logout successful"})
-    resp.delete_cookie("session_token")
+    resp.delete_cookie("session_token", path="/")
     return resp
 
 @router.get("/me")
 async def get_current_user(request: Request):
     if not _db: raise HTTPException(status_code=500, detail="Database not initialized")
     token = request.cookies.get("session_token")
+    if token:
+        token = token.strip('"\' \t\r\n')
     if not token or ":" not in token:
         raise HTTPException(status_code=401, detail="Not logged in")
     
     user_id_str, email = token.split(":", 1)
+    user_id_str = user_id_str.strip('"\' \t\r\n')
+    email = email.strip('"\' \t\r\n').lower()
     
     if is_master_admin_email(email):
         return {

@@ -300,9 +300,12 @@ async def check_authentication(request: Request, call_next):
     # Check for session cookie
     session = request.cookies.get("session_token")
     authenticated = False
+    if session:
+        session = session.strip('"\' \t\r\n')
     if session and ":" in session:
         user_id, email = session.split(":", 1)
-        email = email.strip().lower()
+        user_id = user_id.strip('"\' \t\r\n')
+        email = email.strip('"\' \t\r\n').lower()
         if user_id == "0":
             authenticated = email == settings.ADMIN_EMAIL.lower()
         else:
@@ -310,7 +313,8 @@ async def check_authentication(request: Request, call_next):
                 try:
                     user = await db.get_user_by_email(email)
                     authenticated = bool(user and str(user.get("id")) == user_id)
-                except Exception:
+                except Exception as e:
+                    logger.warning("Auth check DB error: %s", e)
                     authenticated = False
 
     if not authenticated:
