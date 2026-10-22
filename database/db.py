@@ -81,7 +81,11 @@ class CursorWrapper:
         parts = self.sql.split('?')
         pg_sql = parts[0] + ''.join(f'${i+1}{p}' for i, p in enumerate(parts[1:]))
         
-        pg_sql = pg_sql.replace('INSERT OR IGNORE INTO', 'INSERT INTO')
+        is_ignore = 'INSERT OR IGNORE INTO' in self.sql.upper()
+        if is_ignore:
+            pg_sql = pg_sql.replace('INSERT OR IGNORE INTO', 'INSERT INTO')
+            if 'ON CONFLICT' not in pg_sql.upper():
+                pg_sql = pg_sql.rstrip().rstrip(';') + ' ON CONFLICT DO NOTHING'
         pg_sql = pg_sql.replace("datetime('now')", "NOW()")
         pg_sql = pg_sql.replace("datetime('now','-1 day')", "NOW() - INTERVAL '1 day'")
         pg_sql = pg_sql.replace("datetime('now','-7 days')", "NOW() - INTERVAL '7 days'")
@@ -95,14 +99,27 @@ class CursorWrapper:
                     self._lastrowid = record['id'] if record and 'id' in record else 0
                     self._rowcount = 1
                     return self
+                except asyncpg.exceptions.UniqueViolationError:
+                    if is_ignore:
+                        self._lastrowid = 0
+                        self._rowcount = 0
+                        return self
+                    raise
                 except asyncpg.exceptions.UndefinedColumnError:
                     pass
             
-            res = await self.conn.execute(pg_sql, *self.params)
             try:
-                self._rowcount = int(res.split()[-1])
-            except:
-                self._rowcount = 1
+                res = await self.conn.execute(pg_sql, *self.params)
+                try:
+                    self._rowcount = int(res.split()[-1])
+                except:
+                    self._rowcount = 1
+            except asyncpg.exceptions.UniqueViolationError:
+                if is_ignore:
+                    self._lastrowid = 0
+                    self._rowcount = 0
+                    return self
+                raise
         else:
             self._fetched = await self.conn.fetch(pg_sql, *self.params)
         return self
@@ -151,6 +168,10 @@ class Database:
         self._db_path = settings.DB_PATH
         self._conn = None
 
+    @property
+    def is_connected(self) -> bool:
+        return self._conn is not None
+
     async def initialize(self):
         db_url = (
             getattr(settings, "DATABASE_URL", "")
@@ -159,29 +180,49 @@ class Database:
         if not db_url:
             db_url = "postgresql://postgres:postgres@localhost:5432/threatintel"
 
-        # ── SSL handling ─────────────────────────────────────────────────────
-        # asyncpg does NOT honour the ?sslmode= query-param by itself.
-        # Supabase (and most managed Postgres providers) REQUIRE SSL.
-        # Strip the sslmode param from the URL and pass ssl= explicitly so
-        # asyncpg doesn't receive an unknown keyword in the DSN.
+        # ── Parse URL & SSL handling for Supabase / PostgreSQL ────────────────
+        import re as _re
+        import urllib.parse as _up
+        import ssl as _ssl
+
         use_ssl = False
         if "sslmode=" in db_url:
-            import re as _re
             m = _re.search(r"[?&]sslmode=([^&]+)", db_url)
-            if m and m.group(1).lower() in ("require", "verify-ca", "verify-full", "prefer"):
+            if m and m.group(1).lower() in ("require", "verify-ca", "verify-full", "prefer", "no-verify"):
                 use_ssl = True
-            # Remove sslmode param so asyncpg doesn't choke on unknown kwarg
             db_url = _re.sub(r"[?&]sslmode=[^&]*", "", db_url).rstrip("?&")
-        elif any(host in db_url for host in (".supabase.co", ".supabase.com", "supabase")):
-            # Supabase always requires SSL even if not in URL
+        elif any(host in db_url for host in (".supabase.co", ".supabase.com", "supabase", "pooler.supabase.com")):
             use_ssl = True
 
+        ssl_ctx = None
+        if use_ssl:
+            ssl_ctx = _ssl.create_default_context()
+            ssl_ctx.check_hostname = False
+            ssl_ctx.verify_mode = _ssl.CERT_NONE
+
+        # Parse DSN so special characters (e.g. %40, @ in password/username) are decoded properly
+        parsed = _up.urlsplit(db_url)
+        user = _up.unquote(parsed.username) if parsed.username else None
+        password = _up.unquote(parsed.password) if parsed.password else None
+        host = parsed.hostname
+        port = parsed.port or 5432
+        database = parsed.path.lstrip('/') or 'postgres'
+
         try:
-            pg_conn = await asyncpg.connect(db_url, ssl=use_ssl if use_ssl else False, timeout=30)
+            pg_conn = await asyncpg.connect(
+                user=user,
+                password=password,
+                database=database,
+                host=host,
+                port=port,
+                ssl=ssl_ctx,
+                statement_cache_size=0,
+                timeout=30
+            )
         except Exception as connect_err:
             logger.error(
-                "Database connection FAILED. URL=%s…  SSL=%s  Error: %s",
-                db_url[:60], use_ssl, connect_err
+                "Database connection FAILED. Host=%s Port=%s User=%s SSL=%s Error: %s",
+                host, port, user, use_ssl, connect_err
             )
             raise
 

@@ -1,10 +1,12 @@
 """config.py — ThreatIntel TIP v2.3 — Complete configuration"""
 import os
 from pathlib import Path
-from dotenv import load_dotenv
 from contextvars import ContextVar
-
-load_dotenv()
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 request_api_keys = ContextVar("request_api_keys", default={})
 
@@ -31,8 +33,9 @@ class Settings:
     PORT          = int(os.getenv("PORT", 8003))
     DB_ENGINE     = os.getenv("DB_ENGINE", "sqlite").strip().lower()
     DB_PATH       = os.getenv("DB_PATH", "data/threat_intel.db")
+    SUPABASE_POOLER_URL = "postgresql://postgres.yrdqkguaoqskxgfgqmmv:Nowfal%4014121999@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres"
     POSTGRES_URL  = os.getenv("POSTGRES_URL", "")
-    DATABASE_URL  = os.getenv("DATABASE_URL", POSTGRES_URL)
+    DATABASE_URL  = os.getenv("DATABASE_URL") or POSTGRES_URL or SUPABASE_POOLER_URL
     CLICKHOUSE_HOST     = os.getenv("CLICKHOUSE_HOST", "localhost")
     CLICKHOUSE_PORT     = int(os.getenv("CLICKHOUSE_PORT", 8123))
     CLICKHOUSE_USERNAME = os.getenv("CLICKHOUSE_USERNAME", "default")

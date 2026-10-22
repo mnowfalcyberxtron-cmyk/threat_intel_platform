@@ -193,7 +193,7 @@ class LoginRequest(BaseModel):
 
 @router.post("/signup")
 async def signup(req: SignupRequest, request: Request, background_tasks: BackgroundTasks):
-    if not _db: raise HTTPException(status_code=500, detail="Database not initialized")
+    if not _db or not _db.is_connected: raise HTTPException(status_code=503, detail="Database connection is unavailable. Please check database settings.")
     db = _db
     
     if not validate_password(req.password):
@@ -219,7 +219,7 @@ async def signup(req: SignupRequest, request: Request, background_tasks: Backgro
 
 @router.post("/login")
 async def login(req: LoginRequest, request: Request, background_tasks: BackgroundTasks):
-    if not _db: raise HTTPException(status_code=500, detail="Database not initialized")
+    if not _db or not _db.is_connected: raise HTTPException(status_code=503, detail="Database connection is unavailable. Please check database settings.")
     db = _db
     # Master Admin Check
     if settings.ADMIN_PASSWORD and is_master_admin_email(req.email) and req.password == settings.ADMIN_PASSWORD:
