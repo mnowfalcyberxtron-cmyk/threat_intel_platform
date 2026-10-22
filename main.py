@@ -1,4 +1,4 @@
-﻿"""main.py — ThreatIntel TIP v2.4 — Full Advisory Monitor + Fixed AI"""
+"""main.py — ThreatIntel TIP v2.4 — Full Advisory Monitor + Fixed AI"""
 import asyncio, logging, sys, traceback, io, os, socket
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -158,13 +158,13 @@ async def lifespan(app: FastAPI):
         await db.initialize()
         ai_engine.set_db(db)
         
-        # Initialize ICS advisory caching system (sync to SQLite on startup)
-        try:
-            await adv_module.init_ics_advisory_system()
-        except Exception as e:
-            logger.error("Failed to initialize ICS advisory system: %s", e)
-
         if not IS_VERCEL:
+            # Initialize ICS advisory caching system (sync on local startup only)
+            try:
+                await adv_module.init_ics_advisory_system()
+            except Exception as e:
+                logger.error("Failed to initialize ICS advisory system: %s", e)
+
             scheduler.start()
 
             # ICS AI Enrichment background loop

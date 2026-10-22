@@ -228,16 +228,27 @@ class Database:
 
         self._conn = ConnectionWrapper(pg_conn)
 
-        # Apply all schemas - CREATE IF NOT EXISTS is safe on existing DBs
-        for schema in ALL_SCHEMAS:
-            try:
-                await self._conn.execute(schema)
-            except Exception as e:
-                logger.debug("Schema apply: %s — %s", schema[:60], e)
+        # Quick check: If tables already exist, skip redundant DDL round-trips for fast startup
+        is_initialized = False
+        try:
+            async with self._conn.execute("SELECT 1 FROM users LIMIT 1") as cur:
+                await cur.fetchone()
+                is_initialized = True
+        except Exception:
+            is_initialized = False
 
-        await self._conn.commit()
-        await self._seed_sources()
-        await self._migrate_existing()
+        if not is_initialized:
+            # First-time setup: apply schemas, seed sources, and run migrations
+            for schema in ALL_SCHEMAS:
+                try:
+                    await self._conn.execute(schema)
+                except Exception as e:
+                    logger.debug("Schema apply: %s — %s", schema[:60], e)
+
+            await self._conn.commit()
+            await self._seed_sources()
+            await self._migrate_existing()
+
         logger.info("Database ready (Postgres/Supabase): %s", db_url[:50])
 
     async def _migrate_existing(self):
