@@ -123,6 +123,8 @@ class CursorWrapper:
         pg_sql = pg_sql.replace("date(updated_at)", "SUBSTRING(updated_at, 1, 10)")
         pg_sql = pg_sql.replace("date(discovery_date)", "SUBSTRING(discovery_date, 1, 10)")
         pg_sql = pg_sql.replace("date(created_at)", "SUBSTRING(created_at, 1, 10)")
+        pg_sql = pg_sql.replace("instr(", "STRPOS(")
+        pg_sql = pg_sql.replace("INSTR(", "STRPOS(")
         
         if pg_sql.strip().upper().startswith(("INSERT", "UPDATE", "DELETE")):
             if pg_sql.strip().upper().startswith("INSERT") and "RETURNING" not in pg_sql.upper() and "ON CONFLICT" not in pg_sql.upper():
@@ -1738,10 +1740,8 @@ class Database:
         ws  = ("WHERE " + " AND ".join(where)) if where else ""
         off = (page - 1) * page_size
 
-        sort_expr = (
-            f"printf('%04d-%02d-01', COALESCE({sort_year_expr}, 0),"
-            f" COALESCE({sort_month_expr}, 0))"
-        )
+        sort_year = f"COALESCE({sort_year_expr}, 0)"
+        sort_month = f"COALESCE({sort_month_expr}, 0)"
 
         try:
             async with self._conn.execute(f"SELECT COUNT(*) FROM ics_advisories {ws}", params) as cur:
@@ -1749,7 +1749,7 @@ class Database:
                 total = total_row[0] if total_row else 0
 
             async with self._conn.execute(
-                f"SELECT * FROM ics_advisories {ws} ORDER BY {sort_expr} DESC, ics_number DESC LIMIT ? OFFSET ?",
+                f"SELECT * FROM ics_advisories {ws} ORDER BY {sort_year} DESC, {sort_month} DESC, ics_number DESC LIMIT ? OFFSET ?",
                 params + [page_size, off]
             ) as cur:
                 rows = await cur.fetchall()
